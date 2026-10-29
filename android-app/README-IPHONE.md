@@ -1,0 +1,63 @@
+# FranceStudent Chat pour iPhone — SideStore
+
+Version iPhone du même chat que l'application Android. Minimum : **iOS 16.4**.
+
+Le projet contient l'interface complète, les projets et réglages, la dictée vocale,
+la connexion native et l'enregistrement des fichiers dans l'app **Fichiers**.
+
+## Obtenir l'IPA sans Mac personnel
+
+La compilation doit s'exécuter sur macOS avec Xcode. Le workflow
+`.github/workflows/build-iphone.yml` utilise une machine macOS de GitHub Actions.
+Il construit un IPA **non signé**, sans identifiant Apple ni certificat dans GitHub.
+SideStore se charge ensuite de la signature sur l'iPhone.
+
+1. Mettre le dossier `android-app` et `.github` à la racine d'un dépôt GitHub.
+2. Ouvrir **Actions → Compiler FranceStudent pour SideStore → Run workflow**.
+3. Attendre la fin de la compilation, puis télécharger l'artefact
+   **FranceStudent-iPhone-SideStore** depuis la page du run.
+4. Décompresser cet artefact : il contient `FranceStudent-iPhone.ipa`.
+5. Sur l'iPhone où SideStore est déjà configuré, ouvrir **SideStore → My Apps → +**
+   et sélectionner l'IPA dans Fichiers. Accepter la signature avec son propre compte Apple.
+
+Une archive ZIP des sources ne s'installe pas dans SideStore. Il faut l'IPA produit
+par une compilation réussie. Les limites et renouvellements dépendent du compte
+Apple et de la configuration SideStore ; aucun compte Apple n'est stocké ici.
+
+## Compiler sur un Mac
+
+Prérequis : Xcode 16 ou ultérieur, Node.js 22 ou ultérieur, CocoaPods.
+
+```bash
+cd android-app
+npm ci
+npm run ipa
+```
+
+Résultat : `android-app/dist/FranceStudent-iPhone.ipa`.
+Le script refuse une exécution sous Windows et cible un véritable appareil arm64,
+pas un simulateur. Il lance `cap sync ios` avant chaque compilation.
+
+## Fichiers et autorisations
+
+- Les fichiers téléchargés se trouvent dans **Fichiers → Sur mon iPhone → FranceStudent Chat**.
+- Le microphone et la reconnaissance vocale sont demandés pour la dictée.
+- La caméra et les photos sont utilisées lorsqu'on joint une image ou change l'avatar.
+- La connexion au compte utilise les mêmes serveurs FranceStudent que l'application Android.
+- Le clavier, l'encoche et la zone d'accueil iOS sont pris en compte par l'interface.
+
+## Vérifications
+
+```bash
+node scripts/verify-iphone.cjs
+node test-restoration.cjs
+node test-general-settings.cjs
+node test-mcp-wizard.cjs
+node test-projects-activity.cjs
+node test-message-actions.cjs
+```
+
+Ces vérifications ne remplacent pas une compilation Xcode ni un essai sur iPhone.
+
+Références : [Capacitor 7 iOS](https://capacitorjs.com/docs/v7/ios),
+[installation de SideStore](https://docs.sidestore.io/docs/installation/install).

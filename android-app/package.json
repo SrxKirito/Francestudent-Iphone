@@ -1,0 +1,25 @@
+{
+  "name": "francestudent-android",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Application Android et iPhone FranceStudent (Capacitor)",
+  "scripts": {
+    "sync": "cap sync android",
+    "open": "cap open android",
+    "apk": "cap sync android && cd android && gradlew assembleDebug",
+    "sync:ios": "cap sync ios",
+    "open:ios": "cap open ios",
+    "ipa": "bash scripts/build-iphone.sh"
+  },
+  "dependencies": {
+    "@capacitor-community/speech-recognition": "^7.0.1",
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/core": "^7.0.0",
+    "@capacitor/ios": "7.6.9"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.0.0"
+  },
+  "author": "Hecone",
+  "license": "ISC"
+}
