@@ -32,5 +32,19 @@ vm.runInContext(`
   assert.equal(await vm.runInContext('loadConversationFromServer(conversation)', context), true);
   assert.equal(vm.runInContext('conversation.messages[0].images[0].messageId', context), 'message');
   assert.equal(vm.runInContext('conversation.messages[0].images[0].chatId', context), 'chat-server');
+  assert.equal(vm.runInContext('collectGeneratedImages({parts:JSON.stringify([{type:"output_image",imageId}])})[0].id', context), imageId);
+  vm.runInContext(`
+    globalThis.imageRequests = [];
+    getAccessToken = async force => force ? 'renewed' : 'initial';
+    window.Capacitor = { isNativePlatform: () => true, Plugins: { CapacitorHttp: {
+      request: async options => {
+        imageRequests.push(options);
+        return imageRequests.length === 1 ? {status:401} : {status:200,headers:{'Content-Type':'image/png'},data:'aGVsbG8='};
+      }
+    }}};
+  `, context);
+  assert.equal(await vm.runInContext('fetchGeneratedImage("/test-image")', context), 'data:image/png;base64,aGVsbG8=');
+  assert.equal(vm.runInContext('imageRequests[1].headers.Authorization', context), 'Bearer renewed');
+  assert.equal(vm.runInContext('imageRequests[1].responseType', context), 'arraybuffer');
   console.log('OK: avatar restoration, provider recognition, image-only server history and image identifiers.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

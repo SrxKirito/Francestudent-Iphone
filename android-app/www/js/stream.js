@@ -323,6 +323,10 @@ function collectGeneratedImages(root) {
   if (out.some(image => image.data)) return out;
   const seen = new Set(out.map(generatedImageKey));
   const walk = (node, depth) => {
+    if (typeof node === "string" && depth <= 10 && /^[\s]*[\[{]/.test(node)) {
+      try { walk(JSON.parse(node), depth + 1); } catch {}
+      return;
+    }
     if (!node || typeof node !== "object" || depth > 10) return;
     if (Array.isArray(node)) { for (const item of node) walk(item, depth + 1); return; }
     if (typeof node.type === "string" && /partial|input/i.test(node.type)) return;
@@ -354,11 +358,15 @@ function collectGeneratedImagesCore(root) {
     if (key && !seen.has(key)) { seen.add(key); out.push(image); }
   };
   const walk = (node, depth) => {
+    if (typeof node === "string" && depth <= 10 && /^[\s]*[\[{]/.test(node)) {
+      try { walk(JSON.parse(node), depth + 1); } catch {}
+      return;
+    }
     if (!node || typeof node !== "object" || depth > 10) return;
     if (Array.isArray(node)) { for (const item of node) walk(item, depth + 1); return; }
     const type = typeof node.type === "string" ? node.type : "";
     if (/partial|input/i.test(type) || /^(user|system)$/i.test(node.role || "")) return;
-    if (IMAGE_TYPE_RE.test(type) || /^image\//i.test(node.mimeType || node.mime_type || "") || IMAGE_ID_KEYS.some(key => typeof node[key] === "string")) {
+    if (IMAGE_TYPE_RE.test(type) || /image.?generation/i.test(node.toolName || node.tool_name || "") || /^image\//i.test(node.mimeType || node.mime_type || "") || IMAGE_ID_KEYS.some(key => typeof node[key] === "string")) {
       const raw = [node.result, node.b64_json, node.image_base64, node.base64, node.imageData, node.data]
         .find(v => typeof v === "string" && v.length > 200 && !UUID_RE.test(v)) || "";
       const imageUrl = node.image_url && typeof node.image_url === "object" ? node.image_url.url : node.image_url;
@@ -450,33 +458,46 @@ function collectUuidCandidates(root, exclude) {
 }
 
 // Renvoie une URL data: de l'image générée (base64 direct ou téléchargée depuis l'API).
+async function fetchGeneratedImage(path, retried = false) {
+  const cap = window.Capacitor;
+  const http = cap?.isNativePlatform?.() && cap.Plugins?.CapacitorHttp;
+  if (http) {
+    // Native HTTP returns binary as base64. Avoid passing it through fetch().blob()
+    // on WKWebView, where the patched fetch can interpret it as text.
+    const response = await http.request({
+      url: API_URL + path, method: "GET", responseType: "arraybuffer",
+      headers: { ...clientHeaders(), Accept: "image/*", Authorization: "Bearer " + await getAccessToken(retried) },
+      connectTimeout: 30000, readTimeout: 60000
+    });
+    if (response.status === 401 && !retried) return fetchGeneratedImage(path, true);
+    if (response.status < 200 || response.status >= 300) throw new Error("HTTP " + response.status);
+    const headers = response.headers || {};
+    const type = Object.entries(headers).find(([key]) => key.toLowerCase() === "content-type")?.[1] || "image/png";
+    if (!/^image\//i.test(type) || typeof response.data !== "string" || !response.data) throw new Error("Réponse image invalide");
+    return "data:" + type.split(";")[0] + ";base64," + response.data;
+  }
+  const response = await apiFetch(path, { accept: "image/*" });
+  if (!response.ok) throw new Error("HTTP " + response.status);
+  const blob = await response.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
+
 async function resolveGeneratedImage(image) {
   if (image.data) return image.data;
   if (image.url && /^(https?:|data:image\/)/i.test(image.url)) return image.url;
   if (image.url && image.url.startsWith("/")) {
-    const res = await apiFetch(image.url, { accept: "image/*" });
-    if (!res.ok) throw new Error("HTTP " + res.status);
-    const blob = await res.blob();
-    return await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = () => reject(reader.error);
-      reader.readAsDataURL(blob);
-    });
+    return fetchGeneratedImage(image.url);
   }
   if (!image.id || !image.messageId || !image.chatId) return null;
   const key = image.chatId + "/" + image.messageId + "/" + image.id;
   if (generatedImageCache.has(key)) return generatedImageCache.get(key);
   const promise = (async () => {
-    const response = await apiFetch("/chats/" + encodeURIComponent(image.chatId) + "/messages/" + encodeURIComponent(image.messageId) + "/images/" + encodeURIComponent(image.id), { accept: "image/*" });
-    if (!response.ok) throw new Error("HTTP " + response.status);
-    const blob = await response.blob();
-    return await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = () => reject(reader.error);
-      reader.readAsDataURL(blob);
-    });
+    return fetchGeneratedImage("/chats/" + encodeURIComponent(image.chatId) + "/messages/" + encodeURIComponent(image.messageId) + "/images/" + encodeURIComponent(image.id));
   })();
   generatedImageCache.set(key, promise);
   promise.catch(() => generatedImageCache.delete(key));

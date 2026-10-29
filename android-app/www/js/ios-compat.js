@@ -9,9 +9,14 @@ function setupIOSViewport() {
   const update = () => {
     const height = window.visualViewport ? window.visualViewport.height : window.innerHeight;
     root.style.setProperty("--ios-viewport-height", Math.round(height) + "px");
+    // Keep WKWebView's document at its origin: only the message list scrolls.
+    if (window.scrollY || window.scrollX) window.scrollTo(0, 0);
   };
   update();
   window.visualViewport?.addEventListener("resize", update);
+  window.visualViewport?.addEventListener("scroll", update);
+  document.addEventListener("focusin", () => { update(); setTimeout(update, 350); });
+  document.addEventListener("focusout", () => setTimeout(update, 350));
   window.addEventListener("resize", update);
 }
 

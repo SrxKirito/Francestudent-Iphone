@@ -571,7 +571,7 @@ async function loadConversationFromServer(conversation) {
         const found = [];
         collectSourceUrls({ parts: item.parts, webSearchDomains: item.webSearchDomains }, found, new Set());
         if (found.length) entry.sources = found;
-        const pics = collectGeneratedImages({ parts: item.parts, images: item.images, attachments: item.attachments, content: item.content, metadata: item.metadata })
+        const pics = collectGeneratedImages(item)
    .map(img => img.id && item.id ? { id: img.id, messageId: item.id, chatId: conversation.chatId } : img.data ? { data: img.data } : img.url ? { url: img.url } : null)
    .filter(Boolean);
  if (pics.length) entry.images = pics;

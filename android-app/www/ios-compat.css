@@ -2,6 +2,13 @@
   height: var(--ios-viewport-height, 100dvh);
   bottom: auto;
 }
+:root.native-ios, :root.native-ios body {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+:root.native-ios .main, :root.native-ios .chat-area { min-height: 0; }
+:root.native-ios textarea, :root.native-ios input { font-size: 16px; }
 :root.native-ios .sidebar {
   padding-top: max(12px, env(safe-area-inset-top));
   padding-bottom: max(12px, env(safe-area-inset-bottom));
