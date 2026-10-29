@@ -9,6 +9,11 @@
 }
 :root.native-ios .main, :root.native-ios .chat-area { min-height: 0; }
 :root.native-ios textarea, :root.native-ios input { font-size: 16px; }
+:root.native-ios.ios-keyboard-open .composer {
+  padding-bottom: 0;
+  margin-bottom: 0;
+}
+:root.native-ios.ios-keyboard-open .composer .disclaimer { display: none; }
 :root.native-ios .sidebar {
   padding-top: max(12px, env(safe-area-inset-top));
   padding-bottom: max(12px, env(safe-area-inset-bottom));
