@@ -31,7 +31,7 @@ BUILT_APP="$BUILD_ROOT/DerivedData/Build/Products/Release-iphoneos/App.app"
 test -d "$BUILT_APP" || { echo "L'application iPhone compilée est introuvable."; exit 1; }
 EXECUTABLE=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$BUILT_APP/Info.plist")
 test -f "$BUILT_APP/$EXECUTABLE"
-/usr/bin/lipo -verify_arch arm64 "$BUILT_APP/$EXECUTABLE"
+/usr/bin/lipo "$BUILT_APP/$EXECUTABLE" -verify_arch arm64
 
 STAGING_ROOT="$(mktemp -d "$BUILD_ROOT/payload.XXXXXX")"
 mkdir -p "$STAGING_ROOT/Payload"
