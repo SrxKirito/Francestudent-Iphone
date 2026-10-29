@@ -94,6 +94,52 @@ function cycleStudyMode() {
   showToast(next ? "Mode étudiant : " + STUDY_MODES[next].label + ". Joignez un cours ou un PDF,ou collez votre texte." : "Mode étudiant désactivé.");
 }
 
+function setupStudyMenu() {
+  const button = $("toggle-study");
+  const menu = $("study-menu");
+  if (!button || !menu) return;
+  const close = () => {
+    menu.classList.add("hidden");
+    button.setAttribute("aria-expanded", "false");
+  };
+  button.addEventListener("click", event => {
+    event.stopPropagation();
+    const open = menu.classList.contains("hidden");
+    menu.querySelectorAll("[data-study]").forEach(option => {
+      const selected = option.dataset.study === (store.studyMode || "");
+      option.classList.toggle("selected", selected);
+      option.setAttribute("aria-checked", String(selected));
+    });
+    menu.classList.toggle("hidden", !open);
+    button.setAttribute("aria-expanded", String(open));
+    if (open) menu.querySelector(".selected")?.focus();
+  });
+  menu.addEventListener("click", event => {
+    const option = event.target.closest("[data-study]");
+    if (!option || !menu.contains(option)) return;
+    const mode = option.dataset.study;
+    if (mode && !STUDY_MODES[mode]) return;
+    store.studyMode = mode;
+    saveStore();
+    renderStudyToggle();
+    close();
+    button.focus();
+  });
+  document.addEventListener("click", event => {
+    if (!menu.contains(event.target) && !button.contains(event.target)) close();
+  });
+  document.addEventListener("keydown", event => {
+    if (menu.classList.contains("hidden")) return;
+    if (event.key === "Escape") { close(); button.focus(); }
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const options = [...menu.querySelectorAll("[data-study]")];
+      const index = options.indexOf(document.activeElement);
+      options[(index + (event.key === "ArrowDown" ? 1 : -1) + options.length) % options.length].focus();
+    }
+  });
+}
+
 const IMAGE_MODELS = {
   "gpt-image-2.5-sunburst": { short: "Sunburst", name: "GPT Image 2.5 Sunburst" },
   "gpt-image-2.5-flare": { short: "Flare", name: "GPT Image 2.5 Flare" },

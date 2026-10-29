@@ -169,7 +169,7 @@ function bindEvents() {
     renderToggles();
   });
   const studyButton = $("toggle-study");
-  if (studyButton) studyButton.addEventListener("click", cycleStudyMode);
+  setupStudyMenu();
   setupImageModelMenu();
   renderImageModel();
   if (typeof setupDropZone === "function") setupDropZone();
