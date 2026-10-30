@@ -164,7 +164,7 @@ function bindEvents() {
     const option = event.target.closest(".attach-option");
     if (!option?.dataset.target) return;
     closeMenus();
-    $(option.dataset.target).click();
+    openAttachmentPicker(option.dataset.target);
   });
   for (const inputId of ["photo-input", "file-input", "camera-input"]) {
     $(inputId).addEventListener("change", async event => {

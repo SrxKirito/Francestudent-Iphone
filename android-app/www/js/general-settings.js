@@ -95,13 +95,14 @@ function parseWebDomains(value) {
 
 async function loadWebDomainSettings() {
   const session = store.session;
+  webDomainSettings = null;
   $("web-settings-fields").disabled = true;
   $("web-settings-retry").hidden = true;
   generalStatus("web-settings-status", "Chargement des filtres…");
   try {
-    const data = await settingsApi("/user/web-search-domains");
+    const raw = await settingsApi("/user/web-search-domains");
     if (session !== store.session) return;
-    if (!data || !Array.isArray(data.allowedDomains) || !Array.isArray(data.blockedDomains)) throw new Error("Filtres du serveur illisibles.");
+    const data = normalizeWebDomainSettings(raw);
     webDomainSettings = data;
     $("web-filter-type").value = data.filterType === "blocklist" ? "blocklist" : "allowlist";
     $("web-allowed-domains").value = data.allowedDomains.join("\n");
@@ -112,7 +113,20 @@ async function loadWebDomainSettings() {
   } catch (err) {
     generalStatus("web-settings-status", "Impossible de charger les filtres : " + err.message, true);
     $("web-settings-retry").hidden = false;
+    // Les modes sans filtre restent utilisables même si les listes ne chargent pas.
+    $("web-settings-fields").disabled = false;
   }
+}
+
+function normalizeWebDomainSettings(raw) {
+  const data = raw == null || raw === "" ? {} : raw;
+  if (typeof data !== "object" || Array.isArray(data)) throw new Error("Filtres du serveur illisibles.");
+  const list = key => {
+    if (data[key] == null) return [];
+    if (!Array.isArray(data[key]) || data[key].some(item => typeof item !== "string")) throw new Error("Liste de domaines invalide.");
+    return data[key];
+  };
+  return { filterType: data.filterType === "blocklist" ? "blocklist" : "allowlist", allowedDomains: list("allowedDomains"), blockedDomains: list("blockedDomains") };
 }
 
 async function saveWebSettings(event) {
@@ -122,6 +136,7 @@ async function saveWebSettings(event) {
   if (!Object.hasOwn(WEB_MODE_LABELS, webSearchMode)) return;
   let domains = null;
   if (webSearchMode === "filtered") {
+    if (!webDomainSettings) return generalStatus("web-settings-status", "Charge les listes avec Réessayer avant de modifier les filtres.", true);
     try {
       domains = {
         filterType: $("web-filter-type").value,

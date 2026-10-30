@@ -451,6 +451,28 @@ async function addFiles(fileList) {
   updateSendButton();
 }
 
+async function openAttachmentPicker(inputId) {
+  const cap = window.Capacitor;
+  if (cap?.getPlatform?.() !== "ios" || !["photo-input", "file-input"].includes(inputId)) {
+    $(inputId).click();
+    return;
+  }
+  if (openAttachmentPicker.busy) return;
+  openAttachmentPicker.busy = true;
+  try {
+    const picker = cap.registerPlugin("AttachmentPicker");
+    const result = await (inputId === "photo-input" ? picker.pickPhotos() : picker.pickFiles());
+    const files = (result.files || []).map(item => {
+      const binary = atob(item.data);
+      const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
+      return new File([bytes], item.name, { type: item.mime || "application/octet-stream" });
+    });
+    if (files.length) await addFiles(files);
+  } catch (error) {
+    showToast("Sélection impossible : " + (error.message || "réessaie dans un instant."), true);
+  } finally { openAttachmentPicker.busy = false; }
+}
+
 function renderAttachments() {
   const box = $("attachments");
   box.innerHTML = "";

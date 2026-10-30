@@ -25,6 +25,9 @@ const json = value => JSON.parse(JSON.stringify(value));
 assert.deepEqual(json(vm.runInContext('parseWebDomains("Wikipedia.org, https://example.com/ wikipedia.org")', context)), ['wikipedia.org', 'example.com']);
 assert.throws(() => vm.runInContext('parseWebDomains("https://example.com/path")', context));
 assert.throws(() => vm.runInContext('parseWebDomains("https://user:pass@example.com")', context));
+assert.deepEqual(json(vm.runInContext('normalizeWebDomainSettings(null)', context)), {filterType:'allowlist',allowedDomains:[],blockedDomains:[]});
+assert.deepEqual(json(vm.runInContext('normalizeWebDomainSettings({filterType:"blocklist",allowedDomains:null,blockedDomains:["example.com"]})', context)), {filterType:'blocklist',allowedDomains:[],blockedDomains:['example.com']});
+assert.throws(() => vm.runInContext('normalizeWebDomainSettings({allowedDomains:"invalid"})', context), /invalide/);
 (async () => {
   await vm.runInContext('loadGeneralSettings()', context);
   assert.equal(get('gpt-reasoning').value, 'high');
@@ -33,6 +36,7 @@ assert.throws(() => vm.runInContext('parseWebDomains("https://user:pass@example.
   await vm.runInContext('saveGeneralSettings({preventDefault(){}})', context);
   assert.deepEqual(calls.pop().body, { gptReasoning: 'high', customInstructions: '' });
   assert.equal(context.store.customInstructionsManaged, true);
+  await vm.runInContext('loadWebDomainSettings()', context);
   get('web-search-mode').value = 'filtered';
   get('web-filter-type').value = 'allowlist';
   get('web-allowed-domains').value = 'wikipedia.org';

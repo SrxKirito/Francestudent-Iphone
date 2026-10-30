@@ -45,13 +45,13 @@
 
 /* Menu tactile, inspiré du sélecteur iOS. */
 .composer-actions .attach-menu {
-  width: min(340px, calc(100vw - 32px)); padding: 12px; gap: 4px;
+  width: min(300px, calc(100vw - 32px)); padding: 8px; gap: 2px;
   border-radius: 30px; background: color-mix(in srgb, var(--surface) 90%, transparent);
   -webkit-backdrop-filter: blur(28px); backdrop-filter: blur(28px);
 }
-.attach-menu .attach-option { min-height: 76px; gap: 20px; padding: 8px 12px; background: transparent; font-size: 1.25rem; }
-.attach-menu .attach-option-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 56px; width: 56px; height: 56px; border-radius: 50%; background: var(--hover); }
-.attach-menu .attach-option-icon svg { width: 28px; height: 28px; }
+.attach-menu .attach-option { min-height: 58px; gap: 14px; padding: 6px 10px; background: transparent; font-size: 1.05rem; }
+.attach-menu .attach-option-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 42px; width: 42px; height: 42px; border-radius: 50%; background: var(--hover); }
+.attach-menu .attach-option-icon svg { width: 23px; height: 23px; }
 .attach-menu #toggle-web { margin-top: 8px; border-top: 1px solid var(--border); border-radius: 0; }
 /* Le contenu riche défile dans sa propre zone, jamais toute la page. */
 html, body, .app { max-width: 100%; overflow-x: hidden; }
