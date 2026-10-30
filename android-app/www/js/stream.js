@@ -643,15 +643,19 @@ async function streamChat(conversation, text, attachments, onDelta, onEvent) {
               const following = list.slice(user + 1);
               const nextUser = following.findIndex(m=>m.role==='user');
               const answer = user < 0 ? null : following.slice(0,nextUser<0?undefined:nextUser).find(m => m.role === "assistant" && !baseline.has(m.id));
-              if (answer && typeof answer.content === "string" && answer.content) {
-                onDelta(answer.content);
+              const recoveredImages = answer ? collectGeneratedImages(answer) : [];
+              const recoveredText = typeof answer?.content === 'string' ? answer.content : []
+                .concat(Array.isArray(answer?.content) ? answer.content : [], Array.isArray(answer?.parts) ? answer.parts : [])
+                .map(part => typeof part === 'string' ? part : typeof part?.text === 'string' ? part.text : '').filter(Boolean).join('\n\n');
+              if (answer && (recoveredText || recoveredImages.length)) {
+                if (recoveredText) onDelta(recoveredText);
                 if (typeof onEvent === "function") {
                   const sources = [];
                   collectSourceUrls(answer, sources, new Set());
                   if (sources.length) onEvent("sources", sources);
-                  for (const image of collectGeneratedImages(answer)) onEvent("image", { ...image, messageId: answer.id, chatId: conversation.chatId });
+                  for (const image of recoveredImages) onEvent("image", { ...image, messageId: answer.id, chatId: conversation.chatId });
                 }
-                return answer.content;
+                return recoveredText;
               }
             }
           } catch {}
