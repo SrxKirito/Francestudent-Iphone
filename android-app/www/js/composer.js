@@ -414,11 +414,21 @@ async function addConvertedFile(file, mime) {
 
 async function addFiles(fileList) {
   const files = Array.from(fileList || []);
+  const queued = (addFiles.queue || Promise.resolve()).catch(() => {}).then(() => addFilesBatch(files));
+  addFiles.queue = queued;
+  return queued;
+}
+
+async function addFilesBatch(fileList) {
+  const files = Array.from(fileList || []);
   for (const file of files) {
     if (file.size > MAX_FILE_BYTES) {
       alert(file.name + " dépasse 50 Mo.");
       continue;
     }
+    const start = pendingFiles.length;
+    const previewId = typeof rememberPreview === 'function' ? await rememberPreview(file) : null;
+    try {
     if (isPdfFile(file)) {
       try {
         if (await addPdfFile(file)) continue;
@@ -441,6 +451,9 @@ async function addFiles(fileList) {
       await addConvertedFile(file, mime);
     } catch (error) {
       alert("Impossible de lire " + file.name + " : " + (error && error.message ? error.message : error));
+    }
+    } finally {
+      if (previewId) for (const entry of pendingFiles.slice(start)) entry.previewId = previewId;
     }
   }
   if (typeof dedupePendingImages === "function") {
@@ -480,6 +493,11 @@ function renderAttachments() {
   for (const file of pendingFiles) {
     const chip = document.createElement("div");
     chip.className = "attachment-chip";
+    chip.addEventListener('click', event => { if (!event.target.closest('.attachment-remove')) previewAttachment(file); });
+    chip.tabIndex = 0;
+    chip.setAttribute('role', 'group');
+    chip.setAttribute('aria-label', 'Pièce jointe : ' + file.name + '. Entrée pour l’aperçu.');
+    chip.addEventListener('keydown', event => { if (event.target === chip && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); previewAttachment(file); } });
     if (file.kind === "image") {
       const img = document.createElement("img");
       img.src = file.data;
@@ -733,7 +751,7 @@ async function sendMessage() {
   }
   const userMessage = { role: "user", content: display };
   if (sentText !== display) userMessage.prompt = sentText;
-  if (files.length) userMessage.attachments = files.map(file => ({ id: file.id, name: file.name, kind: file.kind, mime: file.mime, size: file.size, data: file.data }));
+  if (files.length) userMessage.attachments = files.map(file => ({ id: file.id, name: file.name, kind: file.kind, mime: file.mime, size: file.size, data: file.data, previewId: file.previewId || null }));
   conversation.messages.push(userMessage);
   conversation.updatedAt = Date.now();
   saveStore();

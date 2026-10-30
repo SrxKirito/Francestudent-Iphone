@@ -42,6 +42,7 @@ jobs:
           node test-general-settings.cjs
           node test-image-model-settings.cjs
           node test-attachment-picker.cjs
+          node test-preview.cjs
           node test-mcp-wizard.cjs
           node test-projects-activity.cjs
           node test-message-actions.cjs

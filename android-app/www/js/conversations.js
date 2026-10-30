@@ -222,7 +222,10 @@ function handleMessageClick(event) {
     const cBlock = wrap && wrap.querySelector(".code-block");
     const cCode = cBlock && cBlock.querySelector("pre code");
     const cLang = cBlock && cBlock.querySelector(".code-lang");
-    if (cCode) downloadCode(cCode.textContent, cLang ? cLang.textContent : "", cBlock, fileCard, fileCard.dataset.name);
+    if (cCode) {
+      if (!event.target.closest('.file-card-dl') && typeof previewGeneratedFile === 'function') previewGeneratedFile(cCode.textContent, cLang ? cLang.textContent : "", fileCard.dataset.name);
+      else downloadCode(cCode.textContent, cLang ? cLang.textContent : "", cBlock, fileCard, fileCard.dataset.name);
+    }
     return;
   }
   const dlButton = event.target.closest(".code-download");
@@ -265,6 +268,11 @@ function renderMessageAttachments(bubble, attachments) {
     const chip = document.createElement("div");
     chip.className = "attachment-chip";
     chip.title = file.name || "";
+    chip.tabIndex = 0;
+    chip.setAttribute('role', 'button');
+    chip.setAttribute('aria-label', 'Aperçu de ' + (file.name || 'la pièce jointe'));
+    chip.addEventListener('click', () => previewAttachment(file));
+    chip.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); previewAttachment(file); } });
     chip.classList.add("file-pill");
     {
       const icon = document.createElement("span");

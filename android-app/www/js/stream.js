@@ -558,7 +558,7 @@ function renderGeneratedImages(bubble, images) {
     });
     img.addEventListener("load", () => scrollToBottom());
     img.addEventListener("click", () => {
-      if (img.src && typeof openImageViewer === "function") openImageViewer(img.src);
+      if (img.src) previewAttachment({ name: /^data:image\/jpeg/i.test(img.src) ? "image.jpg" : /^data:image\/webp/i.test(img.src) ? "image.webp" : "image.png", kind: "image", data: img.src });
     });
     figure.append(img, button);
     box.appendChild(figure);

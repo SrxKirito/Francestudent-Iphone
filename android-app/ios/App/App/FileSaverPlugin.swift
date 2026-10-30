@@ -3,15 +3,54 @@ import Capacitor
 import UIKit
 import PhotosUI
 import UniformTypeIdentifiers
+import QuickLook
 
 // Les fichiers restent dans Documents, accessible depuis l'app Fichiers d'iOS.
 @objc(FileSaverPlugin)
-public final class FileSaverPlugin: CAPPlugin, CAPBridgedPlugin {
+public final class FileSaverPlugin: CAPPlugin, CAPBridgedPlugin, QLPreviewControllerDataSource, QLPreviewControllerDelegate {
     public let identifier = "FileSaverPlugin"
     public let jsName = "FileSaver"
     public let pluginMethods: [CAPPluginMethod] = [
-        CAPPluginMethod(name: "save", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "save", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "preview", returnType: CAPPluginReturnPromise)
     ]
+    private var previewURL: URL?
+
+    @objc func preview(_ call: CAPPluginCall) {
+        guard let base64 = call.getString("data"), let data = Data(base64Encoded: base64), data.count <= 50 * 1024 * 1024 else {
+            call.reject("Le fichier est invalide ou dépasse 50 Mo."); return
+        }
+        DispatchQueue.main.async {
+            guard let host = self.bridge?.viewController, host.presentedViewController == nil else {
+                call.reject("Ferme l’aperçu actuel avant d’en ouvrir un autre."); return
+            }
+            do {
+                let folder = FileManager.default.temporaryDirectory.appendingPathComponent("preview-" + UUID().uuidString, isDirectory: true)
+                try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+                let requested = (call.getString("name") ?? "document.pdf") as NSString
+                let name = requested.lastPathComponent
+                let url = folder.appendingPathComponent(name.isEmpty || name == "." || name == ".." ? "document" : name)
+                try data.write(to: url, options: .atomic)
+                guard QLPreviewController.canPreview(url as NSURL) else {
+                    try? FileManager.default.removeItem(at: folder)
+                    call.reject("Ce format ne possède pas d’aperçu natif."); return
+                }
+                self.previewURL = url
+                let viewer = QLPreviewController()
+                viewer.dataSource = self
+                viewer.delegate = self
+                viewer.modalPresentationStyle = .fullScreen
+                host.present(viewer, animated: true) { call.resolve() }
+            } catch { call.reject("Impossible d’ouvrir le document : " + error.localizedDescription) }
+        }
+    }
+
+    public func numberOfPreviewItems(in controller: QLPreviewController) -> Int { previewURL == nil ? 0 : 1 }
+    public func previewController(_ controller: QLPreviewController, previewItemAt index: Int) -> QLPreviewItem { previewURL! as NSURL }
+    public func previewControllerDidDismiss(_ controller: QLPreviewController) {
+        if let url = previewURL { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        previewURL = nil
+    }
 
     @objc func save(_ call: CAPPluginCall) {
         guard let base64 = call.getString("data"),

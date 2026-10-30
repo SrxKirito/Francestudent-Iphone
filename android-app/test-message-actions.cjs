@@ -37,4 +37,7 @@ context.fileCard = { dataset: { fileIndex: '1', name: 'app.js' }, closest: () =>
 vm.runInContext('downloadCode = (...args) => { globalThis.downloaded = args; }; handleMessageClick({target:{closest:selector=>selector===".file-card"?fileCard:null}})', context);
 assert.equal(context.downloaded[0], 'console.log(1);');
 assert.equal(context.downloaded[4], 'app.js');
+vm.runInContext('previewGeneratedFile = (...args) => { globalThis.previewed = args; }; handleMessageClick({target:{closest:selector=>selector===".file-card"?fileCard:null}})', context);
+assert.equal(context.previewed[0], 'console.log(1);');
+assert.equal(context.previewed[2], 'app.js');
 console.log('OK : actions utilisateur sans texte, fichiers en fin de réponse, masqués pendant le flux et téléchargement du bon bloc.');

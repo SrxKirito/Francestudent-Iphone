@@ -51,7 +51,7 @@ function fileIconSvg(name, kind) {
 
 function fileCardHtml(name, index) {
   const safe = escapeHtml(name);
-  return '<button type="button" class="file-card" data-file-index="' + index + '" data-name="' + safe + '" title="Télécharger ' + safe + '"><span class="file-card-icon">' + fileIconSvg(name) + '</span><span class="file-card-name">' + safe + '</span><span class="file-card-dl">' + DL_SVG + '</span></button>';
+  return '<button type="button" class="file-card" data-file-index="' + index + '" data-name="' + safe + '" title="Aperçu de ' + safe + '"><span class="file-card-icon">' + fileIconSvg(name) + '</span><span class="file-card-name">' + safe + '</span><span class="file-card-dl" title="Télécharger">' + DL_SVG + '</span></button>';
 }
 
 function fileNameFromCode(code, lang) {
@@ -191,6 +191,10 @@ async function saveFile(name, bytes) {
   return name;
 }
 
+async function generatedFileBytes(code, name) {
+  return /\.pptx$/i.test(name) ? await makePowerPoint(code) : /\.pdf$/i.test(name) ? makePdf(code) : new TextEncoder().encode(code);
+}
+
 async function downloadCode(code, lang, block, button, forcedName) {
   const name = forcedName || guessFileName(code, lang, block);
   if (button?.disabled) return;
@@ -198,7 +202,7 @@ async function downloadCode(code, lang, block, button, forcedName) {
   const old = button ? button.textContent : '';
   try {
     if (button) { button.disabled = true; button.setAttribute('aria-busy', 'true'); }
-    const bytes = /\.pptx$/i.test(name) ? await makePowerPoint(code) : /\.pdf$/i.test(name) ? makePdf(code) : new TextEncoder().encode(code);
+    const bytes = await generatedFileBytes(code, name);
     const path = String(await saveFile(name, bytes));
     const onIOS = window.Capacitor?.getPlatform?.() === 'ios';
     showToast(onIOS ? 'Fichier enregistré dans Fichiers → Sur mon iPhone → FranceStudent Chat.' : 'Fichier enregistré dans Téléchargements.');
