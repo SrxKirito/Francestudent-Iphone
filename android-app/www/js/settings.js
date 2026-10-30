@@ -87,16 +87,9 @@ function selectSettingsTab(name, focus) {
 // ---------- Génération d'images (onglet Général) ----------
 
 function settingsImageModelList() {
-  // Reprend les modèles du menu image du chat (mêmes identifiants data-model).
-  const list = [];
-  document.querySelectorAll("#image-model-menu .image-model-option[data-model]").forEach(opt => {
-    const id = opt.dataset.model;
-    if (!id || list.some(m => m.id === id)) return;
-    const info = typeof IMAGE_MODELS === "object" && IMAGE_MODELS ? IMAGE_MODELS[id] : null;
-    const label = info ? info.name : (opt.textContent || id).replace(/\s+/g, " ").trim();
-    list.push({ id, label: label || id });
-  });
-  return list;
+  // Le catalogue reste disponible même sans sélecteur d'image dans le chat.
+  const catalog = typeof IMAGE_MODELS === "object" && IMAGE_MODELS ? IMAGE_MODELS : {};
+  return Object.entries(catalog).map(([id, info]) => ({ id, label: info.name || id }));
 }
 
 function applyImageSettingsChange() {
@@ -124,6 +117,12 @@ function renderImageSettings() {
   $("settings-image-model-name").textContent = current ? current.label : "Choisir le modèle";
   $("settings-image-model-logo").innerHTML = providerMark({ provider: "OpenAI" });
   box.innerHTML = "";
+  if (!models.length) {
+    const note = document.createElement("div");
+    note.className = "model-menu-note";
+    note.textContent = "Les modèles d’image sont indisponibles. Relance l’application.";
+    box.appendChild(note);
+  }
   for (const model of models) {
     const btn = modelOption({ id: model.id, name: model.label, provider: "OpenAI", available: true }, store.imageModel);
     btn.onclick = event => {
