@@ -47,7 +47,7 @@ function cacheLibraryImage(record) {
     if(previewId && latest)await libraryWrite({...latest,name,previewId});
   }).catch(console.warn).finally(()=>libraryImageJobs.delete(record.id));
 }
-async function indexConversationFiles(conversation) {
+async function indexConversationFiles(conversation, latestImages = null) {
   const owner=libraryOwner();
   for (const [index,message] of conversation.messages.entries()) {
     const common={owner,conversationId:conversation.id,projectId:conversation.projectId||'',created:conversation.updatedAt||Date.now()};
@@ -61,7 +61,8 @@ async function indexConversationFiles(conversation) {
       const name=fileNameFromCode(code,lang)||guessFileName(code,lang);
       if(name) await libraryWrite({...common,id:owner+':generated:'+conversation.id+':'+index+':'+i,name,direction:'generated',kind:libraryKind(name),code,lang},true);
     }
-    for(const [i,image] of (message.images||[]).entries()) {
+    const images = latestImages && index === conversation.messages.length-1 ? latestImages : message.images || [];
+    for(const [i,image] of images.entries()) {
       const record={...common,id:owner+':image:'+conversation.id+':'+index+':'+i,name:'Image '+(index+1)+'-'+(i+1)+'.png',direction:'generated',kind:'image',image};
       await libraryWrite(record,true);cacheLibraryImage(record);
     }

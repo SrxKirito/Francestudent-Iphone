@@ -20,5 +20,8 @@ const conversation={id:'chat',projectId:'project',updatedAt:1,messages:[
   await context.indexConversationFiles(conversation);
   assert.equal(records.get(deck.id).projectId,'another','Le classement manuel est conservé pendant la réindexation');
   assert.equal(records.size,3,'Aucun doublon pendant la réindexation');
+  const large={data:'data:image/png;base64,'+'A'.repeat(2000000)};
+  await context.indexConversationFiles({...conversation,id:'large-image',messages:[{role:'assistant',content:'',images:[]}]},[large]);
+  assert.equal([...records.values()].find(r=>r.conversationId==='large-image').image.data,large.data,'Les grandes images exclues du localStorage restent dans la bibliothèque IndexedDB');
   console.log('OK : documents envoyés, PPTX et images générés, recherche et classement par projet sans doublons.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

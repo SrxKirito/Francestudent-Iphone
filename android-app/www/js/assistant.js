@@ -330,7 +330,7 @@ async function runAssistant(conversation, text, images = [], resume = false) {
     }
     conversation.messages.push(message);
     delete conversation.pendingResponse;
-    if (typeof indexConversationFiles === 'function') indexConversationFiles(conversation).catch(console.warn);
+    if (typeof indexConversationFiles === 'function') indexConversationFiles(conversation,generatedImages).catch(console.warn);
     if (currentId === conversation.id) addMessageActions(bubble.parentElement, message, conversation.messages.length - 1);
   } catch (error) {
     if (stopRequested || error.auth || error.localPlugin || error.fromStream || (error.status && ![404,409,410].includes(error.status))) delete conversation.pendingResponse;
