@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		BA830F859AD74389A174A301 /* ChatStreamPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA830F859AD74389A174A302 /* ChatStreamPlugin.swift */; };
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
 		50379B232058CBB4000EE86E /* capacitor.config.json in Resources */ = {isa = PBXBuildFile; fileRef = 50379B222058CBB4000EE86E /* capacitor.config.json */; };
 		504EC3081FED79650016851F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504EC3071FED79650016851F /* AppDelegate.swift */; };
@@ -21,6 +22,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		BA830F859AD74389A174A302 /* ChatStreamPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatStreamPlugin.swift; sourceTree = "<group>"; };
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
 		50379B222058CBB4000EE86E /* capacitor.config.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = capacitor.config.json; sourceTree = "<group>"; };
 		504EC3041FED79650016851F /* App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = App.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -82,6 +84,7 @@
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				183894E180CB444D9ED809E6 /* FranceStudentViewController.swift */,
 				A4653134893A4ADA9E05978A /* FileSaverPlugin.swift */,
+				BA830F859AD74389A174A302 /* ChatStreamPlugin.swift */,
 				592FEE4AF3D246989CA8CA88 /* PrivacyInfo.xcprivacy */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
@@ -221,6 +224,7 @@
 			files = (
 				1F9BBAC325EE4EA4B3E29E1B /* FranceStudentViewController.swift in Sources */,
 				E01DA8C849F244A9B43E9B1F /* FileSaverPlugin.swift in Sources */,
+				BA830F859AD74389A174A301 /* ChatStreamPlugin.swift in Sources */,
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

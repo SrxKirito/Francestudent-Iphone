@@ -16,7 +16,7 @@ assert.equal(info.UIFileSharingEnabled, true);
 assert.equal(info.LSSupportsOpeningDocumentsInPlace, true);
 assert.deepEqual(info.UIRequiredDeviceCapabilities, ['arm64']);
 const project = read('ios/App/App.xcodeproj/project.pbxproj');
-for (const name of ['FranceStudentViewController.swift', 'FileSaverPlugin.swift']) {
+for (const name of ['FranceStudentViewController.swift', 'FileSaverPlugin.swift', 'ChatStreamPlugin.swift']) {
   assert.ok(exists('ios/App/App/' + name));
   assert.ok(project.includes(name + ' in Sources */,'), name + ' absent de Sources');
 }

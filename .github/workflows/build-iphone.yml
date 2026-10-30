@@ -43,6 +43,8 @@ jobs:
           node test-image-model-settings.cjs
           node test-attachment-picker.cjs
           node test-preview.cjs
+          node test-native-stream.cjs
+          node test-background-stream.cjs
           node test-mcp-wizard.cjs
           node test-projects-activity.cjs
           node test-message-actions.cjs

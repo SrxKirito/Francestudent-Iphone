@@ -16,14 +16,15 @@ async function scenario(background, recover) {
     ] }) }),
   });
   vm.runInContext(fs.readFileSync(__dirname + '/www/js/stream.js', 'utf8'), context);
-  context.streamChatRequest = async () => {
+  context.streamChatRequest = async (...args) => {
     submissions++;
-    if (background) {
+    if (background === true) {
       context.document.hidden = true;
       listeners.get('visibilitychange')();
       context.document.hidden = false;
     }
-    throw new TypeError('Failed to fetch');
+    if (background === 'native') args[3]('réponse partielle');
+    throw Object.assign(new TypeError('Failed to fetch'), {backgrounded:background==='native'});
   };
   let result, error;
   try { result = await context.streamChat({ chatId: 'chat' }, 'question', [], () => {}); } catch (e) { error = e; }
@@ -34,6 +35,10 @@ async function scenario(background, recover) {
 (async () => {
   const restored = await scenario(true, true);
   assert.equal(restored.result, 'nouvelle réponse');
+  const native = await scenario('native', true);
+  assert.equal(native.result, 'nouvelle réponse', 'Récupération sans événement visibilitychange');
+  const partial = await scenario('native', false);
+  assert.equal(partial.error.partialOutput, 'réponse partielle');
   const foreground = await scenario(false, true);
   assert.equal(foreground.error.message, 'Failed to fetch');
   assert.equal(foreground.reads, 1);

@@ -319,7 +319,13 @@ async function runAssistant(conversation, text, images = []) {
     conversation.messages.push(message);
     if (currentId === conversation.id) addMessageActions(bubble.parentElement, message, conversation.messages.length - 1);
   } catch (error) {
-    bubble.parentElement.remove();
+    typer.stop();
+    if (error.partialOutput) {
+      bubble.classList.remove('pending','streaming','searching','image-generating');
+      hideImageGenPlaceholder(bubble);
+      bubble.innerHTML = renderMarkdown(error.partialOutput);
+      conversation.messages.push({role:'assistant',content:error.partialOutput});
+    } else bubble.parentElement.remove();
     const message = { role: "error", content: friendlyError(error) };
     conversation.messages.push(message);
     if (currentId === conversation.id) {

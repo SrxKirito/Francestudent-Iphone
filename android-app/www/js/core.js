@@ -151,6 +151,7 @@ async function getAccessToken(force = false) {
 let webStreamUnavailable = false;
 
 async function streamingFetch(url, options) {
+  if (window.Capacitor?.getPlatform?.() === 'ios') return nativeStreamingFetch(url, options);
   const webFetch = window.CapacitorWebFetch;
   if (typeof webFetch === "function" && webFetch !== window.fetch && !webStreamUnavailable) {
     try {
@@ -168,6 +169,30 @@ async function streamingFetch(url, options) {
   return fetch(url, options);
 }
 
+async function nativeStreamingFetch(url, options) {
+  const plugin = window.Capacitor.registerPlugin('ChatStream');
+  const failure = result => Object.assign(new TypeError(result.error || 'Connexion interrompue.'), { backgrounded: result.backgrounded === true });
+  const result = await plugin.start({url, headers:options.headers, body:options.body});
+  if (!result.status) throw failure(result);
+  const reader = {
+    async read() {
+      const chunk = await plugin.read({id:result.id});
+      if (chunk.error) throw failure(chunk);
+      if (chunk.done) return {done:true};
+      return {done:false, value:Uint8Array.from(atob(chunk.data), c=>c.charCodeAt(0))};
+    },
+    async cancel() { await plugin.cancel({id:result.id}); }
+  };
+  return {status:result.status, ok:result.status>=200 && result.status<300,
+    body:{getReader:()=>reader},
+    async text() {
+      const decoder=new TextDecoder(); let text='';
+      while(true) { const chunk=await reader.read(); if(chunk.done) break; text+=decoder.decode(chunk.value,{stream:true}); }
+      return text+decoder.decode();
+    }
+  };
+}
+
 async function apiFetch(path, { method = "GET", body, accept = "application/json", stream = false } = {}, retried = false) {
   const token = await getAccessToken(retried);
   const headers = {
@@ -179,7 +204,10 @@ async function apiFetch(path, { method = "GET", body, accept = "application/json
   if (!(typeof FormData !== "undefined" && body instanceof FormData)) headers["Content-Type"] = "application/json";
   const options = { method, body, headers };
   const response = stream ? await streamingFetch(API_URL + path, options) : await fetch(API_URL + path, options);
-  if (response.status === 401 && !retried) return apiFetch(path, { method, body, accept, stream }, true);
+  if (response.status === 401 && !retried) {
+    if (stream && response.body?.getReader) await response.body.getReader().cancel().catch(()=>{});
+    return apiFetch(path, { method, body, accept, stream }, true);
+  }
   return response;
 }
 
