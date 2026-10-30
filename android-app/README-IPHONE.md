@@ -73,3 +73,11 @@ Ajouter une seule fois cette URL dans les sources de SideStore :
 `https://raw.githubusercontent.com/SrxKirito/Francestudent-Iphone/main/source.json`
 
 Chaque modification de l’application sur `main` déclenche la compilation. Après les tests et une compilation réussie, le workflow publie une Release GitHub avec l’IPA et la source. La version iOS augmente à chaque nouveau run ; le numéro et la taille annoncés sont extraits de l’IPA compilé. SideStore peut ensuite proposer la mise à jour directement. L’installation et la signature restent gérées par SideStore.
+
+## Reprise, bibliothèque et notifications locales
+
+Le client sauvegarde les réponses en attente, le texte reçu et le dernier identifiant SSE. Au retour, il utilise `GET /chats/{chatId}/stream?last_event_id=…` pour reprendre le flux existant, sans renvoyer le message au modèle. Si le flux n’est plus disponible, il recherche la réponse enregistrée dans le chat. La conservation et la durée de vie des générations restent gérées par le serveur FranceStudent.
+
+La Bibliothèque regroupe localement les pièces jointes originales, les fichiers générés et les images. Elle propose recherche, filtres, aperçu, enregistrement et classement dans un projet. Les originaux déjà perdus dans les anciennes versions ne peuvent pas être recréés à partir du texte extrait.
+
+Le bouton de notifications de la Bibliothèque demande l’autorisation iOS. Une notification locale est produite si le transport natif reçoit la fin du flux alors que l’app est en arrière-plan. Cela ne fournit pas de notification APNs lorsque l’app est complètement arrêtée : l’intégration d’un service push côté serveur et une signature disposant des capacités APNs seraient nécessaires.

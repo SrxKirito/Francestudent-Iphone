@@ -545,7 +545,7 @@ async function syncConversationsFromServer() {
       if (Number.isInteger(serverAgentId) && serverAgentId !== conversation.agentId) { conversation.agentId = serverAgentId; changed = true; }
       if (chat.title && chat.title !== conversation.title) { conversation.title = String(chat.title); changed = true; }
       if (typeof chat.isPinned === "boolean" && chat.isPinned !== conversation.pinned) { conversation.pinned = chat.isPinned; changed = true; }
-      if (updatedAt > (conversation.updatedAt || 0) + 1000 && conversation !== activeConversation) {
+      if (updatedAt > (conversation.updatedAt || 0) + 1000 && conversation !== activeConversation && !conversation.pendingResponse) {
  conversation.updatedAt = updatedAt;
         conversation.needsLoad = true;
  changed = true;
@@ -633,7 +633,7 @@ async function openConversation(id) {
   renderMessages();
   renderHistory();
   closeSidebar();
-  if (conversation && conversation.chatId && (conversation.needsLoad || !conversation.messages.length)) {
+  if (conversation && !conversation.pendingResponse && conversation.chatId && (conversation.needsLoad || !conversation.messages.length)) {
     await loadConversationFromServer(conversation);
   }
 }
@@ -702,6 +702,7 @@ function renderProfile() {
 }
 
 async function loadProfile() {
+  let loaded = false;
   try {
     const response = await apiFetch("/user/me");
     if (!response.ok) return;
@@ -709,9 +710,11 @@ async function loadProfile() {
     if (!data || typeof data !== "object") return;
     store.profile = { name: String(data.name || ""), email: String(data.email || "") };
     saveStore();
+    loaded = true;
   } catch {
   }
   renderProfile();
+  return loaded;
 }
 
 function applyTheme() {

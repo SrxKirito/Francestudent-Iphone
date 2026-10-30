@@ -1,6 +1,7 @@
 "use strict";
 
 function bindEvents() {
+  $("library-open").addEventListener("click", openLibrary);
   setupSidebarGestures();
   $("login-form").addEventListener("submit", login);
   $("cookie-form").addEventListener("submit", cookieLogin);

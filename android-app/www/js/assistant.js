@@ -203,7 +203,14 @@ function looksLikeImageRequest(text) {
   return verb.test(t) && noun.test(t);
 }
 
-async function runAssistant(conversation, text, images = []) {
+async function runAssistant(conversation, text, images = [], resume = false) {
+  if (resume && conversation.pendingResponse) {
+    const index = conversation.pendingResponse.userIndex;
+    if (Number.isInteger(index)) conversation.messages = conversation.messages.slice(0,index+1);
+    if (currentId === conversation.id) renderMessages();
+  }
+  if (!resume) conversation.pendingResponse = {text,startedAt:Date.now(),output:'',lastEventId:'',userIndex:conversation.messages.length-1,owner:store.profile?.email || ''};
+  saveStore();
   const powerpoint = typeof isPowerPointPrompt === "function" && isPowerPointPrompt(text);
   const bubble = appendMessage("assistant", "");
   const searching = store.webSearch === true;
@@ -223,8 +230,9 @@ async function runAssistant(conversation, text, images = []) {
   updateSendButton();
 
   let imageStartSeen = false;
-  let sources = [];
-  const generatedImages = [];
+  let sources = resume ? conversation.pendingResponse?.sources || [] : [];
+  const generatedImages = resume && conversation.pendingResponse?.lastEventId ? [...(conversation.pendingResponse.images || [])] : [];
+  if (generatedImages.length) renderGeneratedImages(bubble,generatedImages);
   let sourcesBox = null;
   const renderSources = searchingNow => {
     if (!sources.length) return;
@@ -267,18 +275,22 @@ async function runAssistant(conversation, text, images = []) {
         scrollToBottom();
       }
       if (event === "image_start") {
+        if(conversation.pendingResponse)conversation.pendingResponse.imageStarted=true;
         imageStartSeen = true;
         bubble.classList.add("image-generating");
         showImageGenPlaceholder(bubble);
       }
       if (event === "image" && data) {
+        if(generatedImages.some(image=>generatedImageKey(image)===generatedImageKey(data)))return;
         generatedImages.push(data);
+        if(conversation.pendingResponse)conversation.pendingResponse.images=generatedImages.filter(image=>image.id || image.url || image.data?.length<1500000);
         hideImageGenPlaceholder(bubble);
         bubble.classList.remove("image-generating");
         renderGeneratedImages(bubble, [data]);
       }
       if (event === "sources" && Array.isArray(data)) {
  sources = data;
+        if(conversation.pendingResponse)conversation.pendingResponse.sources=data;
         const stillSearching = bubble.classList.contains("pending");
  renderSources(stillSearching);
         if (stillSearching && bubble.classList.contains("searching")) {
@@ -288,7 +300,7 @@ async function runAssistant(conversation, text, images = []) {
         }
         scrollToBottom();
       }
-    });
+    }, resume);
     if (stopRequested) typer.stop();
     else await typer.finish();
     bubble.classList.remove("pending", "streaming", "searching", "image-generating");
@@ -317,8 +329,12 @@ async function runAssistant(conversation, text, images = []) {
         .filter(Boolean);
     }
     conversation.messages.push(message);
+    delete conversation.pendingResponse;
+    if (typeof indexConversationFiles === 'function') indexConversationFiles(conversation).catch(console.warn);
     if (currentId === conversation.id) addMessageActions(bubble.parentElement, message, conversation.messages.length - 1);
   } catch (error) {
+    if (stopRequested || error.auth || error.localPlugin || error.fromStream || (error.status && ![404,409,410].includes(error.status))) delete conversation.pendingResponse;
+    else if (conversation.pendingResponse) conversation.pendingResponse.state = 'interrupted';
     typer.stop();
     if (error.partialOutput) {
       bubble.classList.remove('pending','streaming','searching','image-generating');

@@ -3,8 +3,11 @@
 let previewDatabase;
 function openPreviewDatabase() {
   if (!previewDatabase) previewDatabase = new Promise((resolve, reject) => {
-    const request = indexedDB.open('francestudent-previews', 1);
-    request.onupgradeneeded = () => request.result.createObjectStore('files', { keyPath: 'id' });
+    const request = indexedDB.open('francestudent-previews', 2);
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains('files')) request.result.createObjectStore('files', { keyPath: 'id' });
+      if (!request.result.objectStoreNames.contains('library')) request.result.createObjectStore('library', { keyPath: 'id' });
+    };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
@@ -25,7 +28,7 @@ async function rememberPreview(file) {
         let total = list.reduce((n, entry) => n + entry.size, 0);
         for (const entry of list) {
           if (total <= 200*1024*1024) break;
-          if (entry.id !== id) { store.delete(entry.id); total -= entry.size; }
+          if (entry.id !== id && !entry.saved) { store.delete(entry.id); total -= entry.size; }
         }
       };
       tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error);

@@ -4,13 +4,14 @@ function createSseParser(onEvent) {
   let buffer = "";
   let name = "";
   let data = [];
+  let eventId = "";
 
   function dispatch() {
     const payload = data.join("\n");
     const eventName = name;
     name = "";
     data = [];
-    if (payload) onEvent(eventName, payload);
+    if (payload) onEvent(eventName, payload, eventId);
   }
 
   function handleLine(line) {
@@ -23,6 +24,7 @@ function createSseParser(onEvent) {
     const field = index < 0 ? line : line.slice(0, index);
     let value = index < 0 ? "" : line.slice(index + 1);
     if (value.startsWith(" ")) value = value.slice(1);
+    if (field === "id" && !value.includes("\0")) eventId = value;
     if (field === "event") name = value;
     else if (field === "data") data.push(value);
   }
@@ -576,16 +578,19 @@ function renderGeneratedImages(bubble, images) {
 }
 
 // Une suspension de la WebView ne signifie pas que la génération serveur a échoué.
-async function streamChat(conversation, text, attachments, onDelta, onEvent) {
+async function streamChat(conversation, text, attachments, onDelta, onEvent, resume = false) {
   const startedAt = Date.now();
-  let recentChatIds = null;
-  let latestOutput = '';
+  const initialChatId = conversation.chatId;
+  let recentChatIds = Array.isArray(conversation.pendingResponse?.recentChatIds) ? new Set(conversation.pendingResponse.recentChatIds) : null;
+  let latestOutput = resume ? conversation.pendingResponse?.output || '' : '';
   let backgrounded = document.hidden === true;
   const visibility = () => { if (document.hidden) backgrounded = true; };
   document.addEventListener("visibilitychange", visibility);
   let baseline = null;
   try {
-    if (conversation.chatId) {
+    if (resume) {
+      if (Array.isArray(conversation.pendingResponse?.baselineIds)) baseline = new Set(conversation.pendingResponse.baselineIds);
+    } else if (conversation.chatId) {
       try {
         const res = await apiFetch("/chats/" + encodeURIComponent(conversation.chatId));
         if (res.ok) {
@@ -599,17 +604,21 @@ async function streamChat(conversation, text, attachments, onDelta, onEvent) {
         try {
           const res = await apiFetch('/chats?limit=100&sortedBy=lastMessageAt');
           const data = res.ok ? await res.json() : null;
-          if (Array.isArray(data?.chats)) recentChatIds = new Set(data.chats.map(chat=>chat.id));
+          if (Array.isArray(data?.chats)) {
+            recentChatIds = new Set(data.chats.map(chat=>chat.id));
+            if(conversation.pendingResponse) conversation.pendingResponse.recentChatIds = [...recentChatIds];
+          }
         } catch {}
       }
     }
+    if (!resume && baseline && conversation.pendingResponse) { conversation.pendingResponse.baselineIds = [...baseline]; saveStore(); }
     try {
-      return await streamChatRequest(conversation, text, attachments, value => { latestOutput = value; onDelta(value); }, onEvent);
+      return await streamChatRequest(conversation, text, attachments, value => { latestOutput = value; onDelta(value); }, onEvent, resume);
     } catch (error) {
       if (stopRequested) return latestOutput;
       // L'erreur native porte le vrai état iOS, même si visibilitychange a été différé.
       backgrounded = backgrounded || error.backgrounded === true;
-      if (error.localPlugin || error.auth || error.status || error.fromStream || error.upload) throw error;
+      if (error.localPlugin || error.auth || (error.status && !(resume && [404,409,410].includes(error.status))) || error.fromStream || error.upload) throw error;
       if (!backgrounded && window.Capacitor?.getPlatform?.() !== 'ios') throw error;
       // Attendre le retour au premier plan avant les lectures de récupération.
       while (document.hidden && !stopRequested) await new Promise(resolve => setTimeout(resolve, 500));
@@ -630,6 +639,10 @@ async function streamChat(conversation, text, attachments, onDelta, onEvent) {
           }
           if (matches.length === 1) conversation.chatId = matches[0];
         } catch {}
+      }
+      if ((!resume || !initialChatId) && conversation.chatId && conversation.pendingResponse) {
+        try { return await streamChatRequest(conversation, text, [], value => { latestOutput=value; onDelta(value); }, onEvent, true); }
+        catch (retryError) { if(retryError.auth || retryError.fromStream || retryError.localPlugin || (retryError.status && ![404,409,410].includes(retryError.status))) throw retryError; }
       }
       if (conversation.chatId && baseline) {
         for (let attempt = 0; attempt < 30 && !stopRequested; attempt++) {
@@ -672,7 +685,13 @@ async function streamChat(conversation, text, attachments, onDelta, onEvent) {
   }
 }
 
-async function streamChatRequest(conversation, text, attachments, onDelta, onEvent) {
+async function streamChatRequest(conversation, text, attachments, onDelta, onEvent, resume = false) {
+  let response;
+  if (resume) {
+    if (!conversation.chatId) throw new Error('Identifiant de réponse encore indisponible. Rouvre la discussion après sa synchronisation.');
+    const cursor = conversation.pendingResponse?.lastEventId;
+    response = await apiFetch('/chats/' + encodeURIComponent(conversation.chatId) + '/stream' + (cursor ? '?last_event_id=' + encodeURIComponent(cursor) : ''), {method:'GET',accept:'text/event-stream',stream:true});
+  } else {
   const list = Array.isArray(attachments) ? attachments : [];
   const images = [];
   const files = [];
@@ -727,12 +746,13 @@ async function streamChatRequest(conversation, text, attachments, onDelta, onEve
   };
   if (files.length) payload.files = files;
   if (conversation.projectId) payload.projectId = conversation.projectId;
-  const response = await apiFetch("/chats/stream", {
+  response = await apiFetch("/chats/stream", {
     method: "POST",
     accept: "text/event-stream",
     stream: true,
     body: JSON.stringify(payload)
   });
+  }
 
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
@@ -741,7 +761,9 @@ async function streamChatRequest(conversation, text, attachments, onDelta, onEve
     throw error;
   }
 
-  let output = "";
+  let output = resume && conversation.pendingResponse?.lastEventId ? conversation.pendingResponse.output || "" : "";
+  if(output) onDelta(output);
+  let checkpointAt = 0;
   let completed = false;
   let streamError = null;
   const append = chunk => {
@@ -758,7 +780,7 @@ async function streamChatRequest(conversation, text, attachments, onDelta, onEve
   let emittedImages = 0;
   // Signal « génération d'image démarrée » envoyé une seule fois à l'interface.
   let imageStartSent = false;
-  let sawImageHint = false;
+  let sawImageHint = resume && conversation.pendingResponse?.imageStarted === true;
   // Diagnostic : événements reçus (nom, type d'item), consultable si la réponse est vide.
   const streamLog = [];
   try { window.__lastStreamLog = streamLog; } catch {}
@@ -775,7 +797,7 @@ async function streamChatRequest(conversation, text, attachments, onDelta, onEve
     }
     if (streamLog[streamLog.length - 1] !== entry) streamLog.push(entry);
   };
-  const parser = createSseParser((name, payload) => {
+  const parser = createSseParser((name, payload, eventId) => {
     if (payload === "[DONE]") { completed = true; return; }
     let data;
     try {
@@ -786,7 +808,10 @@ async function streamChatRequest(conversation, text, attachments, onDelta, onEve
     }
     logEvent(name, data);
     if (!data || typeof data !== "object") return;
-    if (data.chat_id) conversation.chatId = data.chat_id;
+    if (data.chat_id) {
+      conversation.chatId = data.chat_id;
+      if (conversation.pendingResponse) saveStore();
+    }
     // Diagnostic : forme de l'item image_generation_call terminé (clés et types seulement).
     if (name === "response.output_item.done" && data.item && data.item.type === "image_generation_call") {
       try { streamLog.push("image_item=" + describeShape(data.item).slice(0, 300)); } catch {}
@@ -855,6 +880,11 @@ async function streamChatRequest(conversation, text, attachments, onDelta, onEve
           }
         }
         break;
+    }
+    if (conversation.pendingResponse) {
+      conversation.pendingResponse.output = output;
+      if (/^\d+$/.test(eventId || '')) conversation.pendingResponse.lastEventId = eventId;
+      if (Date.now()-checkpointAt > 500) { checkpointAt=Date.now(); saveStore(); }
     }
   });
 

@@ -15,9 +15,10 @@ async function showApp() {
   renderMessages();
   updateSendButton();
   renderProfile();
-  loadProfile();
+  const profileReady = await loadProfile();
   syncConversationsFromServer();
   await loadAgents();
+  if (profileReady && typeof resumeSavedResponse === 'function') resumeSavedResponse();
 }
 
 document.addEventListener("visibilitychange", () => {

@@ -696,6 +696,7 @@ function stopGeneration() {
 }
 
 async function sendMessage() {
+  if (currentConversation()?.pendingResponse) { showToast('Reprends ou annule la réponse en cours depuis la bibliothèque.'); return; }
   if (busy) {
     stopGeneration();
     return;
@@ -754,6 +755,7 @@ async function sendMessage() {
   if (sentText !== display) userMessage.prompt = sentText;
   if (files.length) userMessage.attachments = files.map(file => ({ id: file.id, name: file.name, kind: file.kind, mime: file.mime, size: file.size, data: file.data, previewId: file.previewId || null }));
   conversation.messages.push(userMessage);
+  if (typeof indexConversationFiles === 'function') indexConversationFiles(conversation).catch(console.warn);
   conversation.updatedAt = Date.now();
   saveStore();
   renderHistory();
@@ -773,6 +775,7 @@ async function regenerate(index) {
   if (busy) return;
   const conversation = currentConversation();
   if (!conversation) return;
+  if (conversation.pendingResponse) { await runAssistant(conversation,conversation.pendingResponse.text,[],true); return; }
   let userIndex = index - 1;
   while (userIndex >= 0 && conversation.messages[userIndex].role !== "user") userIndex--;
   if (userIndex < 0) return;

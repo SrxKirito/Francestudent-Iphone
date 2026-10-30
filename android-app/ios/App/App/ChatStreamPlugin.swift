@@ -1,6 +1,7 @@
 import Foundation
 import UIKit
 import Capacitor
+import UserNotifications
 
 // Les octets restent dans le processus natif lorsque JavaScript est suspendu.
 @objc(ChatStreamPlugin)
@@ -10,7 +11,8 @@ public final class ChatStreamPlugin: CAPPlugin, CAPBridgedPlugin, URLSessionData
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "start", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "read", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "cancel", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "cancel", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "configureNotifications", returnType: CAPPluginReturnPromise)
     ]
     private var session: URLSession?
     private var task: URLSessionDataTask?
@@ -24,6 +26,51 @@ public final class ChatStreamPlugin: CAPPlugin, CAPBridgedPlugin, URLSessionData
     private var wasBackgrounded = false
     private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
     private var observer: NSObjectProtocol?
+    private var notificationBuffer = Data()
+    private var notificationEvent = ""
+    private var notificationPayload = ""
+    private var notificationSent = false
+    private var notificationChat = ""
+
+    @objc func configureNotifications(_ call: CAPPluginCall) {
+        if call.getBool("enabled") == false {
+            UserDefaults.standard.set(false, forKey: "completion-notifications")
+            call.resolve(["enabled": false]); return
+        }
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, error in
+            UserDefaults.standard.set(granted, forKey: "completion-notifications")
+            if let error = error { call.reject(error.localizedDescription) }
+            else { call.resolve(["enabled": granted]) }
+        }
+    }
+
+    private func inspectCompletion(_ data: Data) {
+        notificationBuffer.append(data)
+        while let newline = notificationBuffer.firstIndex(of: 10) {
+            let line = String(decoding: notificationBuffer[..<newline], as: UTF8.self).trimmingCharacters(in: .newlines)
+            notificationBuffer.removeSubrange(...newline)
+            if line.hasPrefix("event:") { notificationEvent = String(line.dropFirst(6)).trimmingCharacters(in: .whitespaces) }
+            else if line.hasPrefix("data:") && ["stream.open", "completed", "response.completed"].contains(notificationEvent) {
+                notificationPayload += String(line.dropFirst(5)).trimmingCharacters(in: .whitespaces)
+            } else if line.isEmpty {
+                let json = notificationPayload.data(using: .utf8).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+                if let id = json?["chat_id"] as? String { notificationChat = id }
+                let response = json?["response"] as? [String: Any]
+                let failed = (json?["error"] != nil && !(json?["error"] is NSNull)) || (response?["error"] != nil && !(response?["error"] is NSNull))
+                if ["completed", "response.completed"].contains(notificationEvent), !failed, !notificationSent {
+                    notificationSent = true
+                    if UIApplication.shared.applicationState != .active && UserDefaults.standard.bool(forKey: "completion-notifications") {
+                        let content = UNMutableNotificationContent()
+                        content.title = "FranceStudent"
+                        content.body = "Ta réponse est prête. Ouvre l’app pour la retrouver."
+                        content.sound = .default
+                        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: "reply-" + (notificationChat.isEmpty ? streamID : notificationChat), content: content, trigger: nil), withCompletionHandler: nil)
+                    }
+                }
+                notificationEvent = ""; notificationPayload = ""
+            }
+        }
+    }
 
     public override func load() {
         observer = NotificationCenter.default.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { [weak self] _ in
@@ -40,14 +87,17 @@ public final class ChatStreamPlugin: CAPPlugin, CAPBridgedPlugin, URLSessionData
     }
 
     @objc func start(_ call: CAPPluginCall) {
+        let method = call.getString("method") ?? "POST"
         guard let value = call.getString("url"), let url = URL(string: value),
-              url.scheme == "https", url.host == "api.francestudent.ai", url.path == "/chats/stream" else {
+              url.scheme == "https", url.host == "api.francestudent.ai",
+              (method == "POST" && url.path == "/chats/stream" || method == "GET" && url.path.range(of: "^/chats/[^/]+/stream$", options: .regularExpression) != nil) else {
             call.reject("Adresse de génération invalide."); return
         }
         DispatchQueue.main.async {
             guard self.task == nil else { call.reject("Une réponse est déjà en cours."); return }
             self.streamID = UUID().uuidString
             self.chunks = []; self.buffered = 0; self.finished = false; self.failure = nil
+            self.notificationBuffer = Data(); self.notificationEvent = ""; self.notificationPayload = ""; self.notificationSent = false; self.notificationChat = ""
             self.wasBackgrounded = UIApplication.shared.applicationState != .active
             self.startCall = call
             self.backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "Chat response") { [weak self] in
@@ -55,13 +105,13 @@ public final class ChatStreamPlugin: CAPPlugin, CAPBridgedPlugin, URLSessionData
                 self?.endBackgroundTime()
             }
             var request = URLRequest(url: url)
-            request.httpMethod = "POST"
-            request.httpBody = (call.getString("body") ?? "").data(using: .utf8)
+            request.httpMethod = method
+            if method == "POST" { request.httpBody = (call.getString("body") ?? "").data(using: .utf8) }
             for (key, value) in call.getObject("headers") ?? [:] {
                 if let text = value as? String { request.setValue(text, forHTTPHeaderField: key) }
             }
             let config = URLSessionConfiguration.ephemeral
-            config.timeoutIntervalForRequest = 120
+            config.timeoutIntervalForRequest = 330
             config.timeoutIntervalForResource = 900
             config.waitsForConnectivity = true
             self.session = URLSession(configuration: config, delegate: self, delegateQueue: .main)
@@ -118,6 +168,7 @@ public final class ChatStreamPlugin: CAPPlugin, CAPBridgedPlugin, URLSessionData
             failure = "La réponse dépasse la capacité du tampon."; dataTask.cancel(); return
         }
         chunks.append(data); buffered += data.count; flush()
+        inspectCompletion(data)
     }
 
     public func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {

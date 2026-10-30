@@ -73,6 +73,9 @@ function showToast(text, isError) {
     document.body.appendChild(t);
   }
   t.textContent = text;
+  const modal = document.querySelector('dialog[open]');
+  if (modal && t.parentElement !== modal) modal.appendChild(t);
+  else if (!modal && t.parentElement !== document.body) document.body.appendChild(t);
   t.className = 'app-toast show' + (isError ? ' error' : '');
   clearTimeout(showToast.timer);
   showToast.timer = setTimeout(() => { t.className = 'app-toast' + (isError ? ' error' : ''); }, 3200);
