@@ -73,3 +73,10 @@ jobs:
           else
             gh release create "$TAG" dist/FranceStudent-iPhone.ipa dist/source.json --target "$GITHUB_SHA" --title "FranceStudent iPhone $APP_VERSION" --notes "Mise à jour de FranceStudent Chat pour SideStore." --latest --repo "$GITHUB_REPOSITORY"
           fi
+      - name: Actualiser la source JSON directe
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          export SOURCE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/contents/source.json" --jq .sha)"
+          node -e 'const fs=require("fs");fs.writeFileSync("dist/source-update.json",JSON.stringify({message:"Update SideStore source [skip ci]",branch:"main",sha:process.env.SOURCE_SHA,content:fs.readFileSync("dist/source.json").toString("base64")}));'
+          gh api --method PUT "repos/$GITHUB_REPOSITORY/contents/source.json" --input dist/source-update.json --silent

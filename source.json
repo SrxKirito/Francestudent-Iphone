@@ -1,0 +1,43 @@
+{
+  "name": "FranceStudent Chat",
+  "identifier": "org.francestudent.source",
+  "sourceURL": "https://raw.githubusercontent.com/SrxKirito/Francestudent-Iphone/main/source.json",
+  "subtitle": "Mises à jour de FranceStudent pour iPhone",
+  "iconURL": "https://raw.githubusercontent.com/SrxKirito/Francestudent-Iphone/35e7dcfd8d892a35d646c6da6f5a1221a9fbd624/android-app/ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png",
+  "website": "https://github.com/SrxKirito/Francestudent-Iphone",
+  "tintColor": "#2563EB",
+  "apps": [
+    {
+      "name": "FranceStudent Chat",
+      "bundleIdentifier": "org.francestudent.chat",
+      "developerName": "FranceStudent",
+      "localizedDescription": "Chat IA, documents, images et présentations PowerPoint.",
+      "iconURL": "https://raw.githubusercontent.com/SrxKirito/Francestudent-Iphone/35e7dcfd8d892a35d646c6da6f5a1221a9fbd624/android-app/ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png",
+      "tintColor": "#2563EB",
+      "version": "1.1.13",
+      "versionDate": "2026-10-30T22:14:23.076Z",
+      "downloadURL": "https://github.com/SrxKirito/Francestudent-Iphone/releases/download/ios-1.1.13/FranceStudent-iPhone.ipa",
+      "size": 2656589,
+      "versions": [
+        {
+          "version": "1.1.13",
+          "date": "2026-10-30T22:14:23.076Z",
+          "localizedDescription": "Dernière version de FranceStudent Chat : améliorations et corrections de l’application.",
+          "downloadURL": "https://github.com/SrxKirito/Francestudent-Iphone/releases/download/ios-1.1.13/FranceStudent-iPhone.ipa",
+          "size": 2656589,
+          "minOSVersion": "16.4"
+        }
+      ],
+      "appPermissions": {
+        "entitlements": [],
+        "privacy": {
+          "NSCameraUsageDescription": "Prendre une photo pour la joindre à votre discussion.",
+          "NSMicrophoneUsageDescription": "Utiliser le microphone pour dicter vos messages.",
+          "NSPhotoLibraryUsageDescription": "Choisir une image à joindre à votre discussion ou à utiliser comme photo de profil.",
+          "NSSpeechRecognitionUsageDescription": "Transcrire votre voix pour rédiger vos messages."
+        }
+      }
+    }
+  ],
+  "news": []
+}

@@ -16,7 +16,7 @@ async function makeSource(ipaPath, { repo, commit, date = new Date().toISOString
   const version = String(info.CFBundleShortVersionString);
   if (!/^\d+\.\d+(\.\d+)?$/.test(version)) throw new Error('Version iOS invalide.');
   const tag = 'ios-' + version;
-  const sourceURL = `https://github.com/${repo}/releases/latest/download/source.json`;
+  const sourceURL = `https://raw.githubusercontent.com/${repo}/main/source.json`;
   const iconURL = `https://raw.githubusercontent.com/${repo}/${commit}/android-app/ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png`;
   const appVersion = {
     version, date,
