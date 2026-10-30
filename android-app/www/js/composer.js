@@ -67,7 +67,6 @@ function renderComposerTools() {
   const active = [];
   if (store.webSearch === true && store.webSearchMode !== "disabled") active.push("Recherche web");
   if (store.imageMode === true) active.push("Image");
-  if (store.powerpointMode === true) active.push("PowerPoint");
   if (STUDY_MODES[store.studyMode]) active.push("Étudiant : " + STUDY_MODES[store.studyMode].label);
   $("attach").classList.toggle("has-active-tools", active.length > 0);
   const label = "Outils et pièces jointes" + (active.length ? ". Actifs : " + active.join(", ") : "");
@@ -670,7 +669,8 @@ async function sendMessage() {
   let sentText = buildMessageText(text, files);
   if (!sentText && uploads.length) sentText = uploads.some(file => file.kind === "image") ? "Décris cette image." : "Analyse ce fichier.";
   // Mode étudiant : activé par le bouton, ou automatiquement si le message demande un quiz / des cartes / des fiches.
-  const powerpoint = store.powerpointMode === true || (typeof detectsPowerPointRequest === "function" && detectsPowerPointRequest(text));
+  const powerpoint = (typeof detectsPowerPointRequest === "function" && detectsPowerPointRequest(text)) ||
+    (typeof isPowerPointFollowup === "function" && isPowerPointFollowup(text, currentConversation()));
   const studyKey = STUDY_MODES[store.studyMode] ? store.studyMode : (typeof detectStudyIntent === "function" ? detectStudyIntent(text) : "");
   if (powerpoint) {
     sentText = POWERPOINT_INSTRUCTION + "\n\n" + sentText;

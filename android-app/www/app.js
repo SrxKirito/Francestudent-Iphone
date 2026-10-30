@@ -193,12 +193,6 @@ function bindEvents() {
     saveStore();
     renderToggles();
   });
-  $("toggle-powerpoint").addEventListener("click", () => {
-    store.powerpointMode = !store.powerpointMode;
-    if (store.powerpointMode) { store.imageMode = false; store.studyMode = ""; }
-    saveStore();
-    renderToggles();
-  });
   setupStudyMenu();
   setupImageModelMenu();
   renderImageModel();

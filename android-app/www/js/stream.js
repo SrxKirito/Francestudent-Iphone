@@ -575,7 +575,64 @@ function renderGeneratedImages(bubble, images) {
   scrollToBottom();
 }
 
+// Une suspension de la WebView ne signifie pas que la génération serveur a échoué.
 async function streamChat(conversation, text, attachments, onDelta, onEvent) {
+  let backgrounded = document.hidden === true;
+  const visibility = () => { if (document.hidden) backgrounded = true; };
+  document.addEventListener("visibilitychange", visibility);
+  let baseline = null;
+  try {
+    if (conversation.chatId) {
+      try {
+        const res = await apiFetch("/chats/" + encodeURIComponent(conversation.chatId));
+        if (res.ok) {
+          const detail = await res.json();
+          if (Array.isArray(detail.chatMessages)) baseline = new Set(detail.chatMessages.map(m => m.id));
+        }
+      } catch {}
+    } else baseline = new Set();
+    try {
+      return await streamChatRequest(conversation, text, attachments, onDelta, onEvent);
+    } catch (error) {
+      if (stopRequested) return "";
+      if (!backgrounded || error.auth || error.status || error.fromStream || error.upload) throw error;
+      // Attendre le retour au premier plan avant les lectures de récupération.
+      while (document.hidden && !stopRequested) await new Promise(resolve => setTimeout(resolve, 500));
+      if (stopRequested) return "";
+      if (conversation.chatId && baseline) {
+        for (let attempt = 0; attempt < 30 && !stopRequested; attempt++) {
+          try {
+            const res = await apiFetch("/chats/" + encodeURIComponent(conversation.chatId));
+            if (res.ok) {
+              const detail = await res.json();
+              const list = (detail.chatMessages || []).slice().sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
+              // Exiger le nouveau message utilisateur : ne jamais récupérer une ancienne réponse.
+              const user = list.findLastIndex(m => m.role === "user" && !baseline.has(m.id) && typeof m.content === "string" && m.content.endsWith(text));
+              const answer = user < 0 ? null : list.slice(user + 1).find(m => m.role === "assistant" && !baseline.has(m.id));
+              if (answer && typeof answer.content === "string" && answer.content) {
+                onDelta(answer.content);
+                if (typeof onEvent === "function") {
+                  const sources = [];
+                  collectSourceUrls(answer, sources, new Set());
+                  if (sources.length) onEvent("sources", sources);
+                  for (const image of collectGeneratedImages(answer)) onEvent("image", { ...image, messageId: answer.id, chatId: conversation.chatId });
+                }
+                return answer.content;
+              }
+            }
+          } catch {}
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      }
+      if (stopRequested) return "";
+      throw new Error("L’app a été suspendue pendant la réponse. La réponse n’a pas pu être récupérée automatiquement. Rouvre la conversation pour vérifier si elle a été enregistrée avant de réessayer.");
+    }
+  } finally {
+    document.removeEventListener("visibilitychange", visibility);
+  }
+}
+
+async function streamChatRequest(conversation, text, attachments, onDelta, onEvent) {
   const list = Array.isArray(attachments) ? attachments : [];
   const images = [];
   const files = [];
@@ -645,6 +702,7 @@ async function streamChat(conversation, text, attachments, onDelta, onEvent) {
   }
 
   let output = "";
+  let completed = false;
   let streamError = null;
   const append = chunk => {
     if (typeof chunk !== "string" || !chunk) return;
@@ -678,7 +736,7 @@ async function streamChat(conversation, text, attachments, onDelta, onEvent) {
     if (streamLog[streamLog.length - 1] !== entry) streamLog.push(entry);
   };
   const parser = createSseParser((name, payload) => {
-    if (payload === "[DONE]") return;
+    if (payload === "[DONE]") { completed = true; return; }
     let data;
     try {
       data = JSON.parse(payload);
@@ -732,9 +790,11 @@ async function streamChat(conversation, text, attachments, onDelta, onEvent) {
         streamError = data;
         break;
       case "response.completed":
+        completed = true;
         if (data.response && data.response.error) streamError = data.response.error;
         break;
       case "completed":
+        completed = true;
         if (!output && data.message) {
           const msg = data.message;
           if (typeof msg.content === "string") append(msg.content);
@@ -775,6 +835,7 @@ async function streamChat(conversation, text, attachments, onDelta, onEvent) {
     parser.feed(await response.text());
   }
   parser.end();
+  if (!completed && !streamError && !stopRequested) throw new TypeError("Flux de réponse interrompu avant la fin.");
 
   // Dernier message assistant lu par le repli /chats (utilisé pour tester les UUID).
   let fallbackLast = null;

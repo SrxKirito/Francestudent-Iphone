@@ -10,6 +10,7 @@ async function main() {
   const context = vm.createContext({ console: { ...console, error() {} }, setTimeout, clearTimeout, setImmediate, clearImmediate, TextEncoder, TextDecoder, Uint8Array, ArrayBuffer, Blob, document: {} });
   context.window = context;
   vm.runInContext(read('pptxgen/pptxgen.bundle.js'), context);
+  vm.runInContext(read('js/powerpoint-visuals.js'), context);
   vm.runInContext(read('js/powerpoint.js'), context);
   vm.runInContext(read('js/render.js'), context);
   const deck = {
@@ -40,6 +41,7 @@ async function main() {
   const zip = await JSZip.loadAsync(bytes);
   const slideFiles = Object.keys(zip.files).filter(name => /^ppt\/slides\/slide\d+\.xml$/.test(name));
   assert.equal(slideFiles.length, 2);
+  assert.ok(Object.keys(zip.files).some(name => /^ppt\/media\/.*\.png$/.test(name)), 'Illustrations réellement intégrées dans le PPTX');
   for (const file of Object.keys(zip.files).filter(name => /\.(xml|rels)$/.test(name))) {
     const source = await zip.file(file).async('string');
     const errors = [];
@@ -91,10 +93,13 @@ async function main() {
   assert.ok(composer.sent.includes('Énergies : solaire et éolien.'));
   assert.equal(composer.store.conversations[0].messages[0].content, 'Prépare un PowerPoint sur ce cours.');
   assert.equal(composer.store.conversations[0].messages[0].prompt, composer.sent, 'Le protocole est conservé pour régénérer la réponse');
-  prompt.value = 'La photosynthèse, 4 diapositives';
+  prompt.value = 'Génère-moi une présentation sur la photosynthèse, 4 diapositives';
   composer.store.powerpointMode = true;
   await vm.runInContext('sendMessage()', composer);
   assert.ok(composer.sent.startsWith('Création PowerPoint.'));
+  prompt.value = 'Explique la photosynthèse';
+  await vm.runInContext('sendMessage()', composer);
+  assert.equal(composer.sent.startsWith('Création PowerPoint.'), false, 'Un ancien mode sauvegardé ne force plus PowerPoint');
   console.log('OK : bundle navigateur, vraie archive PPTX, XML Office, diapositives modifiables, accents, notes, pagination et téléchargement.');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

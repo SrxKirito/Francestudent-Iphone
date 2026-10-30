@@ -40,7 +40,7 @@ function loadStore() {
     webSearchMode: ["open", "filtered", "disabled"].includes(saved.webSearchMode) ? saved.webSearchMode : "open",
     customInstructionsManaged: saved.customInstructionsManaged === true,
     imageMode: saved.imageMode === true,
-    powerpointMode: saved.powerpointMode === true,
+    powerpointMode: false,
     imageTool: saved.imageTool !== false,
     studyMode: ["fiches", "quiz", "cartes"].includes(saved.studyMode) ? saved.studyMode : "",
     imageModel: ["gpt-image-2.5-sunburst", "gpt-image-2.5-flare", "gpt-image-2"].includes(saved.imageModel) ? saved.imageModel : "gpt-image-2.5-flare",
@@ -147,7 +147,7 @@ async function getAccessToken(force = false) {
 }
 
 // CapacitorHttp remplace window.fetch par un appel natif qui renvoie toute la réponse d'un coup.
-// Pour le flux SSE, on tente le fetch d'origine du WebView (lecture en direct), puis on se replie sur le fetch natif.
+// Pour le flux SSE, utiliser le fetch d'origine si disponible, sinon le client natif.
 let webStreamUnavailable = false;
 
 async function streamingFetch(url, options) {
@@ -158,8 +158,10 @@ async function streamingFetch(url, options) {
       for (const name of ["User-Agent", "Origin", "Referer", "Cookie"]) delete headers[name];
       const response = await webFetch(url, { ...options, headers });
       if (response.status !== 0) return response;
+      throw new TypeError("Flux direct interrompu.");
     } catch (error) {
-      console.warn("Flux direct indisponible, repli sur le client natif :", error && error.message);
+      // Un POST peut déjà avoir été accepté : ne pas lancer une seconde génération.
+      throw error;
     }
     webStreamUnavailable = true;
   }
