@@ -40,6 +40,7 @@ function loadStore() {
     webSearchMode: ["open", "filtered", "disabled"].includes(saved.webSearchMode) ? saved.webSearchMode : "open",
     customInstructionsManaged: saved.customInstructionsManaged === true,
     imageMode: saved.imageMode === true,
+    powerpointMode: saved.powerpointMode === true,
     imageTool: saved.imageTool !== false,
     studyMode: ["fiches", "quiz", "cartes"].includes(saved.studyMode) ? saved.studyMode : "",
     imageModel: ["gpt-image-2.5-sunburst", "gpt-image-2.5-flare", "gpt-image-2"].includes(saved.imageModel) ? saved.imageModel : "gpt-image-2.5-flare",

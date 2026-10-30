@@ -1,6 +1,7 @@
 "use strict";
 
 function bindEvents() {
+  setupSidebarGestures();
   $("login-form").addEventListener("submit", login);
   $("cookie-form").addEventListener("submit", cookieLogin);
   $("logout").addEventListener("click", logout);
@@ -95,7 +96,11 @@ function bindEvents() {
   }
   document.addEventListener("click", closeMenus);
   document.addEventListener("keydown", event => {
-    if (event.key === "Escape") closeMenus();
+    if (event.key === "Escape") {
+      const composerMenuOpen = !$("attach-menu").classList.contains("hidden") || !$("study-menu").classList.contains("hidden");
+      closeMenus();
+      if (composerMenuOpen) $("attach").focus();
+    }
   });
   window.addEventListener("resize", closeMenus);
   applyTheme();
@@ -135,10 +140,29 @@ function bindEvents() {
     menu.classList.remove("hidden");
     $("attach").setAttribute("aria-expanded", "true");
   });
+  $("attach").addEventListener("keydown", event => {
+    if (event.key !== "ArrowDown") return;
+    event.preventDefault();
+    if ($("attach-menu").classList.contains("hidden")) $("attach").click();
+    $("attach-menu").querySelector("button:not(:disabled)")?.focus();
+  });
+  $("attach-menu").addEventListener("keydown", event => {
+    if (event.key === "Escape") {
+      event.stopPropagation();
+      closeMenus();
+      $("attach").focus();
+    }
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const options = [...$("attach-menu").querySelectorAll("button:not(:disabled)")];
+    const index = options.indexOf(document.activeElement);
+    const next = event.key === "Home" ? 0 : event.key === "End" ? options.length - 1 : (index + (event.key === "ArrowUp" ? -1 : 1) + options.length) % options.length;
+    options[next]?.focus();
+  });
   $("attach-menu").addEventListener("click", event => {
     event.stopPropagation();
     const option = event.target.closest(".attach-option");
-    if (!option) return;
+    if (!option?.dataset.target) return;
     closeMenus();
     $(option.dataset.target).click();
   });
@@ -165,10 +189,16 @@ function bindEvents() {
   });
   $("toggle-image").addEventListener("click", () => {
     store.imageMode = !store.imageMode;
+    if (store.imageMode) store.powerpointMode = false;
     saveStore();
     renderToggles();
   });
-  const studyButton = $("toggle-study");
+  $("toggle-powerpoint").addEventListener("click", () => {
+    store.powerpointMode = !store.powerpointMode;
+    if (store.powerpointMode) { store.imageMode = false; store.studyMode = ""; }
+    saveStore();
+    renderToggles();
+  });
   setupStudyMenu();
   setupImageModelMenu();
   renderImageModel();

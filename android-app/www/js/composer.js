@@ -28,8 +28,9 @@ function updateSendButton() {
 function resizePrompt() {
   const prompt = $("prompt");
   prompt.style.height = "auto";
-  prompt.style.height = Math.min(prompt.scrollHeight, 200) + "px";
-  prompt.style.overflowY = prompt.scrollHeight > 200 ? "auto" : "hidden";
+  const limit = Math.min(200, (window.visualViewport?.height || window.innerHeight) * 0.3);
+  prompt.style.height = Math.min(prompt.scrollHeight, limit) + "px";
+  prompt.style.overflowY = prompt.scrollHeight > limit ? "auto" : "hidden";
 }
 
 const TEXT_EXTENSIONS = /\.(txt|md|markdown|csv|tsv|json|jsonl|js|mjs|cjs|jsx|ts|tsx|py|java|kt|c|cc|cpp|h|hpp|cs|go|rs|rb|php|swift|html|htm|css|scss|xml|yml|yaml|toml|ini|cfg|conf|sql|log|sh|bat|ps1|tex|srt|vtt)$/i;
@@ -44,12 +45,14 @@ function isTextFile(file) {
 function renderToggles() {
   const items = [
     ["toggle-web", store.webSearch === true, "Désactiver la recherche web", "Activer la recherche web"],
-    ["toggle-image", store.imageMode === true, "Désactiver la génération d'image", "Activer la génération d'image"]
+    ["toggle-image", store.imageMode === true, "Désactiver la génération d'image", "Activer la génération d'image"],
+    ["toggle-powerpoint", store.powerpointMode === true, "Désactiver la création PowerPoint", "Créer un PowerPoint"]
   ];
   for (const [id, active, onTitle, offTitle] of items) {
     const button = $(id);
     if (!button) continue;
     button.setAttribute("aria-pressed", String(active));
+    button.setAttribute("aria-checked", String(active));
     button.title = active ? onTitle : offTitle;
     if (id === "toggle-web") {
       button.disabled = store.webSearchMode === "disabled";
@@ -58,6 +61,18 @@ function renderToggles() {
   }
   renderStudyToggle();
   renderImageModel();
+}
+
+function renderComposerTools() {
+  const active = [];
+  if (store.webSearch === true && store.webSearchMode !== "disabled") active.push("Recherche web");
+  if (store.imageMode === true) active.push("Image");
+  if (store.powerpointMode === true) active.push("PowerPoint");
+  if (STUDY_MODES[store.studyMode]) active.push("Étudiant : " + STUDY_MODES[store.studyMode].label);
+  $("attach").classList.toggle("has-active-tools", active.length > 0);
+  const label = "Outils et pièces jointes" + (active.length ? ". Actifs : " + active.join(", ") : "");
+  $("attach").setAttribute("aria-label", label);
+  $("attach").title = label;
 }
 
 const STUDY_MODES = {
@@ -83,6 +98,7 @@ function renderStudyToggle() {
   const label = $("study-label");
   if (label) label.textContent = mode ? "Étudiant : " + mode.label : "Étudiant";
   button.title = mode ? "Mode étudiant : " + mode.label + " (toucher pour changer)" : "Mode étudiant : fiches, quiz ou cartes mémoire";
+  renderComposerTools();
 }
 
 function cycleStudyMode() {
@@ -105,6 +121,7 @@ function setupStudyMenu() {
   button.addEventListener("click", event => {
     event.stopPropagation();
     const open = menu.classList.contains("hidden");
+    closeMenus();
     menu.querySelectorAll("[data-study]").forEach(option => {
       const selected = option.dataset.study === (store.studyMode || "");
       option.classList.toggle("selected", selected);
@@ -120,17 +137,18 @@ function setupStudyMenu() {
     const mode = option.dataset.study;
     if (mode && !STUDY_MODES[mode]) return;
     store.studyMode = mode;
+    if (mode) store.powerpointMode = false;
     saveStore();
-    renderStudyToggle();
+    renderToggles();
     close();
-    button.focus();
+    $("attach").focus();
   });
   document.addEventListener("click", event => {
     if (!menu.contains(event.target) && !button.contains(event.target)) close();
   });
   document.addEventListener("keydown", event => {
     if (menu.classList.contains("hidden")) return;
-    if (event.key === "Escape") { close(); button.focus(); }
+    if (event.key === "Escape") { close(); $("attach").focus(); }
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
       const options = [...menu.querySelectorAll("[data-study]")];
@@ -652,8 +670,11 @@ async function sendMessage() {
   let sentText = buildMessageText(text, files);
   if (!sentText && uploads.length) sentText = uploads.some(file => file.kind === "image") ? "Décris cette image." : "Analyse ce fichier.";
   // Mode étudiant : activé par le bouton, ou automatiquement si le message demande un quiz / des cartes / des fiches.
+  const powerpoint = store.powerpointMode === true || (typeof detectsPowerPointRequest === "function" && detectsPowerPointRequest(text));
   const studyKey = STUDY_MODES[store.studyMode] ? store.studyMode : (typeof detectStudyIntent === "function" ? detectStudyIntent(text) : "");
-  if (STUDY_MODES[studyKey]) {
+  if (powerpoint) {
+    sentText = POWERPOINT_INSTRUCTION + "\n\n" + sentText;
+  } else if (STUDY_MODES[studyKey]) {
     // Quiz et cartes : consigne JSON (quiz.js) pour un rendu interactif ; fiches : consigne texte.
     let studyInstruction = STUDY_MODES[studyKey].instruction;
     if (studyKey === "quiz" && typeof QUIZ_INSTRUCTION !== "undefined") studyInstruction = QUIZ_INSTRUCTION;

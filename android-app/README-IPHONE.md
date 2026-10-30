@@ -45,6 +45,8 @@ pas un simulateur. Il lance `cap sync ios` avant chaque compilation.
 - La caméra et les photos sont utilisées lorsqu'on joint une image ou change l'avatar.
 - La connexion au compte utilise les mêmes serveurs FranceStudent que l'application Android.
 - Le clavier, l'encoche et la zone d'accueil iOS sont pris en compte par l'interface.
+- Le menu **+ → PowerPoint** permet de créer une présentation à partir d'un sujet ou de documents joints. On peut aussi demander « Crée un PowerPoint de 5 diapositives sur… ». Le fichier `.pptx`, modifiable et accompagné de notes si fournies, se télécharge depuis la réponse comme les autres documents. La génération du fichier s'effectue sur le téléphone, sans service de conversion externe.
+- Après une mise à jour de PptxGenJS, `npm run vendor:powerpoint` actualise le générateur embarqué et ses licences.
 
 ## Vérifications
 
@@ -55,6 +57,8 @@ node test-general-settings.cjs
 node test-mcp-wizard.cjs
 node test-projects-activity.cjs
 node test-message-actions.cjs
+node test-mobile-input.cjs
+node test-powerpoint.cjs
 ```
 
 Ces vérifications ne remplacent pas une compilation Xcode ni un essai sur iPhone.

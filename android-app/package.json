@@ -4,6 +4,7 @@
   "private": true,
   "description": "Application Android et iPhone FranceStudent (Capacitor)",
   "scripts": {
+    "vendor:powerpoint": "node scripts/copy-powerpoint.cjs",
     "sync": "cap sync android",
     "open": "cap open android",
     "apk": "cap sync android && cd android && gradlew assembleDebug",
@@ -16,7 +17,8 @@
     "@capacitor/android": "^7.0.0",
     "@capacitor/core": "^7.0.0",
     "@capacitor/ios": "7.6.9",
-    "@capacitor/keyboard": "7.0.3"
+    "@capacitor/keyboard": "7.0.3",
+    "pptxgenjs": "4.0.1"
   },
   "devDependencies": {
     "@capacitor/cli": "^7.0.0"

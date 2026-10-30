@@ -55,6 +55,7 @@ function fileCardHtml(name, index) {
 }
 
 function fileNameFromCode(code, lang) {
+  if (/^(pptx|powerpoint)$/i.test(String(lang || '')) && typeof powerPointFileName === 'function') return powerPointFileName(code);
   const ext = CODE_EXT[String(lang || '').trim().toLowerCase()];
   if (!ext) return '';
   const first = String(code || '').split('\n')[0].trim();
@@ -83,8 +84,8 @@ function renderCodeBlock(code, lang, open, downloads = []) {
   const fname = fileNameFromCode(code, lang) || guessFileName(code, lang);
   const index = downloads.length;
   downloads.push({ name: fname, index });
-  const isPdf = fname.toLowerCase().endsWith('.pdf');
-  return '<div class="file-wrap' + (isPdf ? ' file-only' : '') + '" data-file-index="' + index + '">' + renderCodeBlockInner(code, lang) + '</div>';
+  const fileOnly = /\.(pdf|pptx)$/i.test(fname);
+  return '<div class="file-wrap' + (fileOnly ? ' file-only' : '') + '" data-file-index="' + index + '">' + renderCodeBlockInner(code, lang) + '</div>';
 }
 
 function renderCodeBlockInner(code, lang) {
@@ -94,8 +95,8 @@ function renderCodeBlockInner(code, lang) {
     highlightCode(code, lang) + "</code></pre></div>";
 }
 
-const CODE_EXT = { python: 'py', py: 'py', javascript: 'js', js: 'js', typescript: 'ts', ts: 'ts', html: 'html', css: 'css', json: 'json', csv: 'csv', markdown: 'md', md: 'md', java: 'java', c: 'c', cpp: 'cpp', 'c++': 'cpp', csharp: 'cs', cs: 'cs', bash: 'sh', sh: 'sh', shell: 'sh', powershell: 'ps1', sql: 'sql', xml: 'xml', yaml: 'yml', yml: 'yml', php: 'php', ruby: 'rb', go: 'go', rust: 'rs', kotlin: 'kt', swift: 'swift', latex: 'tex', tex: 'tex', txt: 'txt', text: 'txt', pdf: 'pdf', svg: 'svg' };
-const FILE_MIME = { py: 'text/x-python', js: 'text/javascript', html: 'text/html', css: 'text/css', json: 'application/json', csv: 'text/csv', md: 'text/markdown', pdf: 'application/pdf', svg: 'image/svg+xml', xml: 'application/xml', txt: 'text/plain' };
+const CODE_EXT = { python: 'py', py: 'py', javascript: 'js', js: 'js', typescript: 'ts', ts: 'ts', html: 'html', css: 'css', json: 'json', csv: 'csv', markdown: 'md', md: 'md', java: 'java', c: 'c', cpp: 'cpp', 'c++': 'cpp', csharp: 'cs', cs: 'cs', bash: 'sh', sh: 'sh', shell: 'sh', powershell: 'ps1', sql: 'sql', xml: 'xml', yaml: 'yml', yml: 'yml', php: 'php', ruby: 'rb', go: 'go', rust: 'rs', kotlin: 'kt', swift: 'swift', latex: 'tex', tex: 'tex', txt: 'txt', text: 'txt', pdf: 'pdf', svg: 'svg', pptx: 'pptx', powerpoint: 'pptx' };
+const FILE_MIME = { py: 'text/x-python', js: 'text/javascript', html: 'text/html', css: 'text/css', json: 'application/json', csv: 'text/csv', md: 'text/markdown', pdf: 'application/pdf', pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', svg: 'image/svg+xml', xml: 'application/xml', txt: 'text/plain' };
 
 function guessFileName(code, lang, block) {
   const ext = CODE_EXT[String(lang || '').trim().toLowerCase()] || 'txt';
@@ -192,19 +193,23 @@ async function saveFile(name, bytes) {
 
 async function downloadCode(code, lang, block, button, forcedName) {
   const name = forcedName || guessFileName(code, lang, block);
-  const bytes = name.toLowerCase().endsWith('.pdf') ? makePdf(code) : new TextEncoder().encode(code);
+  if (button?.disabled) return;
   const isCard = button && button.classList.contains('file-card');
   const old = button ? button.textContent : '';
   try {
+    if (button) { button.disabled = true; button.setAttribute('aria-busy', 'true'); }
+    const bytes = /\.pptx$/i.test(name) ? await makePowerPoint(code) : /\.pdf$/i.test(name) ? makePdf(code) : new TextEncoder().encode(code);
     const path = String(await saveFile(name, bytes));
     const folder = path.indexOf('/') >= 0 ? path.replace(/[/][^/]*$/, '') : 'Téléchargements';
     showToast('Fichier « ' + name + ' » bien téléchargé et ajouté dans ' + folder);
     if (button && isCard) button.classList.add('saved');
     else if (button) { button.textContent = 'Enregistré'; button.title = path; }
   } catch (err) {
-    showToast('Échec du téléchargement de « ' + name + ' »', true);
+    showToast('Échec du téléchargement de « ' + name + ' »' + (/\.pptx$/i.test(name) ? ' : ' + err.message : ''), true);
     if (button && !isCard) button.textContent = 'Échec';
     console.error(err);
+  } finally {
+    if (button) { button.disabled = false; button.removeAttribute('aria-busy'); }
   }
   if (button && !isCard) setTimeout(() => { button.textContent = old; }, 2500);
 }

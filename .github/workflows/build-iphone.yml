@@ -33,6 +33,8 @@ jobs:
           node test-mcp-wizard.cjs
           node test-projects-activity.cjs
           node test-message-actions.cjs
+          node test-mobile-input.cjs
+          node test-powerpoint.cjs
       - name: Compiler et créer l'IPA sans certificat Apple
         run: bash scripts/build-iphone.sh
       - name: Fournir l'IPA pour SideStore

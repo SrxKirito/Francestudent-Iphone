@@ -223,7 +223,8 @@ async function syncImageTool() {
 }
 
 // Consigne ajoutée au message envoyé (pas au texte affiché) quand le mode Image est actif.
-function imagePromptPrefix() {
+function imagePromptPrefix(text) {
+  if (typeof isPowerPointPrompt === "function" && isPowerPointPrompt(text)) return "";
   if (store.imageMode !== true) return "";
   const model = store.imageModel ? " (modèle " + store.imageModel + ")" : "";
   return "[Génération d'image] Utilise obligatoirement l'outil de génération d'image" + model + " pour créer l'image décrite ci-dessous. Ne réponds pas seulement par du texte ou des emojis.\n\n";
@@ -586,7 +587,7 @@ async function streamChat(conversation, text, attachments, onDelta, onEvent) {
   }
   // Modification d'une image : si l'utilisateur n'a rien joint, on renvoie la dernière image générée comme image source.
   let sourceNote = "";
-  if (!images.length) {
+  if (!images.length && !(typeof isPowerPointPrompt === "function" && isPowerPointPrompt(text))) {
     try {
       const history = Array.isArray(conversation.messages) ? conversation.messages : [];
       let previous = null;
@@ -623,7 +624,7 @@ async function streamChat(conversation, text, attachments, onDelta, onEvent) {
     enableCanvas: false,
     enableWebSearch: store.webSearch === true && store.webSearchMode !== "disabled",
     images,
-        initialContent: imagePromptPrefix() + sourceNote + text,
+        initialContent: imagePromptPrefix(text) + sourceNote + text,
     isIncognito: false,
     isPrivate: false
   };

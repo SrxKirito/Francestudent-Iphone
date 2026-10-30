@@ -204,14 +204,15 @@ function looksLikeImageRequest(text) {
 }
 
 async function runAssistant(conversation, text, images = []) {
+  const powerpoint = typeof isPowerPointPrompt === "function" && isPowerPointPrompt(text);
   const bubble = appendMessage("assistant", "");
   const searching = store.webSearch === true;
   bubble.innerHTML = searching ? WEB_SEARCH_HTML : TYPING_HTML;
   bubble.classList.add("pending");
   if (searching) bubble.classList.add("searching");
   // L'animation démarre dès l'envoi : mode Image forcé, ou demande d'image détectée en mode automatique.
-  let guessedImage = store.imageMode !== true && store.imageTool !== false && looksLikeImageRequest(text);
-  if (store.imageMode === true || guessedImage) {
+  let guessedImage = !powerpoint && store.imageMode !== true && store.imageTool !== false && looksLikeImageRequest(text);
+  if ((!powerpoint && store.imageMode === true) || guessedImage) {
     bubble.classList.add("image-generating");
     showImageGenPlaceholder(bubble);
   }
@@ -342,12 +343,52 @@ async function runAssistant(conversation, text, images = []) {
 }
 
 function openSidebar() {
+  document.activeElement?.blur();
   $("sidebar").classList.add("open");
   $("overlay").classList.remove("hidden");
+  $("menu-toggle").setAttribute("aria-expanded", "true");
 }
 
 function closeSidebar() {
   $("sidebar").classList.remove("open");
   $("overlay").classList.add("hidden");
+  $("menu-toggle").setAttribute("aria-expanded", "false");
+}
+
+function setupSidebarGestures() {
+  const app = $("app");
+  let gesture = null;
+  app.addEventListener("touchstart", event => {
+    gesture = null;
+    if (window.innerWidth > 768 || event.touches.length !== 1) return;
+    const target = event.target;
+    if (target.closest("input, textarea, button, a, select, [contenteditable], dialog, .popover, .settings-modal")) return;
+    if (window.getSelection()?.toString()) return;
+    // Preserve horizontal scrolling in tables and code blocks.
+    for (let node = target; node && node !== app; node = node.parentElement) {
+      if (node.scrollWidth > node.clientWidth + 1 && /auto|scroll/.test(getComputedStyle(node).overflowX)) return;
+    }
+    const touch = event.touches[0];
+    gesture = { x: touch.clientX, y: touch.clientY, time: Date.now(), closing: $("sidebar").classList.contains("open") };
+  }, { passive: true });
+  app.addEventListener("touchmove", event => {
+    if (!gesture) return;
+    if (event.touches.length !== 1) { gesture = null; return; }
+    const dx = event.touches[0].clientX - gesture.x;
+    const dy = event.touches[0].clientY - gesture.y;
+    if (Math.abs(dy) > 20 && Math.abs(dy) > Math.abs(dx)) { gesture = null; return; }
+    if ((gesture.closing ? dx < -16 : dx > 16) && Math.abs(dx) > Math.abs(dy) * 1.5 && event.cancelable) event.preventDefault();
+  }, { passive: false });
+  app.addEventListener("touchend", event => {
+    const start = gesture;
+    gesture = null;
+    if (!start || event.changedTouches.length !== 1 || Date.now() - start.time > 700) return;
+    const dx = event.changedTouches[0].clientX - start.x;
+    const dy = event.changedTouches[0].clientY - start.y;
+    if (Math.abs(dx) < 64 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    if (start.closing && dx < 0) { closeMenus(); closeSidebar(); }
+    else if (!start.closing && dx > 0) { closeMenus(); openSidebar(); }
+  }, { passive: true });
+  app.addEventListener("touchcancel", () => { gesture = null; }, { passive: true });
 }
 

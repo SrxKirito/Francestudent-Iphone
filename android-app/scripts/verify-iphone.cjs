@@ -9,6 +9,7 @@ const config = JSON.parse(read('capacitor.config.json'));
 assert.equal(config.appId, 'org.francestudent.chat');
 assert.equal(config.plugins.CapacitorHttp.enabled, true);
 assert.equal(config.ios.contentInset, 'never');
+assert.equal(config.plugins.Keyboard.resize, 'none', 'La hauteur du clavier est gérée immédiatement par ios-compat.js');
 const info = plist.parse(read('ios/App/App/Info.plist'));
 for (const key of ['NSCameraUsageDescription', 'NSPhotoLibraryUsageDescription', 'NSMicrophoneUsageDescription', 'NSSpeechRecognitionUsageDescription']) assert.ok(info[key], key);
 assert.equal(info.UIFileSharingEnabled, true);
@@ -25,6 +26,7 @@ assert.ok(read('ios/App/App/Base.lproj/Main.storyboard').includes('customClass="
 assert.ok(read('ios/App/App/FranceStudentViewController.swift').includes('registerPluginInstance(FileSaverPlugin())'));
 assert.ok(read('ios/App/Podfile').includes("platform :ios, '16.4'"));
 assert.ok(read('ios/App/Podfile').includes('CapacitorCommunitySpeechRecognition'));
+assert.ok(read('ios/App/Podfile').includes('CapacitorKeyboard'));
 plist.parse(read('ios/App/App/PrivacyInfo.xcprivacy'));
 const icon = fs.readFileSync(path.join(root, 'ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png'));
 assert.equal(icon.readUInt32BE(16), 1024);

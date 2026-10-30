@@ -422,6 +422,8 @@ function renderHistory() {
 }
 
 function closeMenus() {
+  $("study-menu")?.classList.add("hidden");
+  $("toggle-study")?.setAttribute("aria-expanded", "false");
   $("conv-menu").classList.add("hidden");
   $("model-menu").classList.add("hidden");
   $("model-button").setAttribute("aria-expanded", "false");
