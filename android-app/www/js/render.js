@@ -200,8 +200,8 @@ async function downloadCode(code, lang, block, button, forcedName) {
     if (button) { button.disabled = true; button.setAttribute('aria-busy', 'true'); }
     const bytes = /\.pptx$/i.test(name) ? await makePowerPoint(code) : /\.pdf$/i.test(name) ? makePdf(code) : new TextEncoder().encode(code);
     const path = String(await saveFile(name, bytes));
-    const folder = path.indexOf('/') >= 0 ? path.replace(/[/][^/]*$/, '') : 'Téléchargements';
-    showToast('Fichier « ' + name + ' » bien téléchargé et ajouté dans ' + folder);
+    const onIOS = window.Capacitor?.getPlatform?.() === 'ios';
+    showToast(onIOS ? 'Fichier enregistré dans Fichiers → Sur mon iPhone → FranceStudent Chat.' : 'Fichier enregistré dans Téléchargements.');
     if (button && isCard) button.classList.add('saved');
     else if (button) { button.textContent = 'Enregistré'; button.title = path; }
   } catch (err) {

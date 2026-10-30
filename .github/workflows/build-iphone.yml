@@ -2,14 +2,24 @@ name: Compiler FranceStudent pour SideStore
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['android-app/**', '.github/workflows/build-iphone.yml']
+
+concurrency:
+  group: sidestore-release
+  cancel-in-progress: false
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-iphone:
     runs-on: macos-15
     timeout-minutes: 30
+    env:
+      APP_VERSION: 1.1.${{ github.run_number }}
+      APP_BUILD: ${{ github.run_number }}
     defaults:
       run:
         working-directory: android-app
@@ -36,8 +46,11 @@ jobs:
           node test-message-actions.cjs
           node test-mobile-input.cjs
           node test-powerpoint.cjs
+          node test-sidestore-source.cjs
       - name: Compiler et créer l'IPA sans certificat Apple
         run: bash scripts/build-iphone.sh
+      - name: Générer la source SideStore depuis l’IPA
+        run: node scripts/make-sidestore-source.cjs
       - name: Fournir l'IPA pour SideStore
         uses: actions/upload-artifact@v7.0.2
         with:
@@ -45,3 +58,14 @@ jobs:
           path: android-app/dist/FranceStudent-iPhone.ipa
           if-no-files-found: error
           retention-days: 14
+      - name: Publier la mise à jour SideStore
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="ios-$APP_VERSION"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/FranceStudent-iPhone.ipa dist/source.json --clobber --repo "$GITHUB_REPOSITORY"
+            gh release edit "$TAG" --latest --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" dist/FranceStudent-iPhone.ipa dist/source.json --target "$GITHUB_SHA" --title "FranceStudent iPhone $APP_VERSION" --notes "Mise à jour de FranceStudent Chat pour SideStore." --latest --repo "$GITHUB_REPOSITORY"
+          fi

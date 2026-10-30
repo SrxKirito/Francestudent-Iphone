@@ -24,6 +24,7 @@ xcodebuild \
   -sdk iphoneos \
   -destination 'generic/platform=iOS' \
   -derivedDataPath "$BUILD_ROOT/DerivedData" \
+  MARKETING_VERSION="${APP_VERSION:-1.0}" CURRENT_PROJECT_VERSION="${APP_BUILD:-1}" \
   CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= \
   build
 

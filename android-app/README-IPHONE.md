@@ -65,3 +65,11 @@ Ces vérifications ne remplacent pas une compilation Xcode ni un essai sur iPhon
 
 Références : [Capacitor 7 iOS](https://capacitorjs.com/docs/v7/ios),
 [installation de SideStore](https://docs.sidestore.io/docs/installation/install).
+
+## Mises à jour dans SideStore
+
+Ajouter une seule fois cette URL dans les sources de SideStore :
+
+`https://github.com/SrxKirito/Francestudent-Iphone/releases/latest/download/source.json`
+
+Chaque modification de l’application sur `main` déclenche la compilation. Après les tests et une compilation réussie, le workflow publie une Release GitHub avec l’IPA et la source. La version iOS augmente à chaque nouveau run ; le numéro et la taille annoncés sont extraits de l’IPA compilé. SideStore peut ensuite proposer la mise à jour directement. L’installation et la signature restent gérées par SideStore.
