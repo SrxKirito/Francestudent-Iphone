@@ -609,7 +609,7 @@ async function streamChat(conversation, text, attachments, onDelta, onEvent) {
       if (stopRequested) return latestOutput;
       // L'erreur native porte le vrai état iOS, même si visibilitychange a été différé.
       backgrounded = backgrounded || error.backgrounded === true;
-      if (error.auth || error.status || error.fromStream || error.upload) throw error;
+      if (error.localPlugin || error.auth || error.status || error.fromStream || error.upload) throw error;
       if (!backgrounded && window.Capacitor?.getPlatform?.() !== 'ios') throw error;
       // Attendre le retour au premier plan avant les lectures de récupération.
       while (document.hidden && !stopRequested) await new Promise(resolve => setTimeout(resolve, 500));

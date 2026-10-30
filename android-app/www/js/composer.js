@@ -473,7 +473,8 @@ async function openAttachmentPicker(inputId) {
   if (openAttachmentPicker.busy) return;
   openAttachmentPicker.busy = true;
   try {
-    const picker = cap.registerPlugin("AttachmentPicker");
+    const picker = cap.Plugins?.AttachmentPicker;
+    if (!picker || typeof picker.pickPhotos !== 'function' || typeof picker.pickFiles !== 'function') throw new Error('Le sélecteur iPhone est indisponible. Ferme puis rouvre l’app après sa mise à jour.');
     const result = await (inputId === "photo-input" ? picker.pickPhotos() : picker.pickFiles());
     const files = (result.files || []).map(item => {
       const binary = atob(item.data);

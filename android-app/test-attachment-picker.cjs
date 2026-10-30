@@ -3,13 +3,10 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 let platform = 'ios', clicks = 0, photos = 0, files = 0, received;
 const context = vm.createContext({
-  window: { Capacitor: { getPlatform: () => platform, registerPlugin(name) {
-    assert.equal(name, 'AttachmentPicker');
-    return {
+  window: { Capacitor: { getPlatform: () => platform, Plugins: { AttachmentPicker: {
       async pickPhotos() { photos++; return { files: [] }; },
       async pickFiles() { files++; return { files: [{ name: 'cours.txt', mime: 'text/plain', data: btoa('Bonjour') }] }; }
-    };
-  } } },
+    } } } },
   $: () => ({ click() { clicks++; } }), atob, Uint8Array, File,
   showToast(message) { throw new Error(message); }
 });

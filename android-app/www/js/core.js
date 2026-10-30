@@ -170,7 +170,10 @@ async function streamingFetch(url, options) {
 }
 
 async function nativeStreamingFetch(url, options) {
-  const plugin = window.Capacitor.registerPlugin('ChatStream');
+  const plugin = window.Capacitor.Plugins?.ChatStream;
+  if (!plugin || typeof plugin.start !== 'function' || typeof plugin.read !== 'function' || typeof plugin.cancel !== 'function') {
+    throw Object.assign(new Error('Le module de réponse iPhone est indisponible. Ferme puis rouvre l’app après sa mise à jour.'), {localPlugin:true});
+  }
   const failure = result => Object.assign(new TypeError(result.error || 'Connexion interrompue.'), { backgrounded: result.backgrounded === true });
   const result = await plugin.start({url, headers:options.headers, body:options.body});
   if (!result.status) throw failure(result);

@@ -44,6 +44,7 @@ jobs:
           node test-attachment-picker.cjs
           node test-preview.cjs
           node test-native-stream.cjs
+          node test-ios-bridge.cjs
           node test-background-stream.cjs
           node test-mcp-wizard.cjs
           node test-projects-activity.cjs
