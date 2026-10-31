@@ -5,9 +5,9 @@
   "description": "Application Android et iPhone FranceStudent (Capacitor)",
   "scripts": {
     "vendor:powerpoint": "node scripts/copy-powerpoint.cjs",
-    "sync": "cap sync android",
+    "sync": "node scripts/prepare-android.cjs",
     "open": "cap open android",
-    "apk": "cap sync android && cd android && gradlew assembleDebug",
+    "apk": "node scripts/prepare-android.cjs && cd android && gradlew assembleDebug",
     "sync:ios": "cap sync ios",
     "open:ios": "cap open ios",
     "ipa": "bash scripts/build-iphone.sh"

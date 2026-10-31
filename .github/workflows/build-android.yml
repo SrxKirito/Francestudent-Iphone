@@ -1,0 +1,37 @@
+name: Compiler Android
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['android-app/**', '.github/workflows/build-android.yml']
+permissions:
+  contents: read
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: android-app
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: android-app/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - run: npm ci
+      - run: node test-ide-link.cjs && node test-ide-link-remembered.cjs
+      - run: node scripts/prepare-android.cjs
+      - name: Compiler APK de vérification
+        run: cd android && chmod +x gradlew && ./gradlew assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: FranceStudent-Android-debug
+          path: android-app/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

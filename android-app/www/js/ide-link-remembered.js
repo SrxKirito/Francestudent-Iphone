@@ -17,7 +17,7 @@ function validRememberedLink(value) {
 function ideLinkVault() { return window.Capacitor?.Plugins?.IDELinkVault; }
 async function saveRememberedLink(value, { guard = () => true, resume = false } = {}) {
   if (!resume) ideLinkRememberEpoch++;
-  const vault = ideLinkVault(); if (!vault?.save) throw new Error("Mets à jour l’app iPhone pour conserver cette association.");
+  const vault = ideLinkVault(); if (!vault?.save) throw new Error("Mets à jour l’app mobile pour conserver cette association.");
   const normalized = validRememberedLink(value);
   const operation = ideLinkVaultQueue.then(async () => { if (!guard()) throw new Error("Reconnexion annulée."); await vault.save({ value: JSON.stringify(normalized) }); franceIDERemembered = normalized; return normalized; });
   ideLinkVaultQueue = operation.catch(() => {}); return operation;
@@ -38,7 +38,7 @@ async function loadRememberedLink() {
 async function forgetRememberedLink() { ideLinkRememberEpoch++; const operation = ideLinkVaultQueue.then(async () => { if (ideLinkVault()?.remove) await ideLinkVault().remove(); franceIDERemembered = null; }); ideLinkVaultQueue = operation.catch(() => {}); return operation; }
 async function rememberedTransport(url, { method = "GET", data } = {}) {
   const native = window.Capacitor?.Plugins?.CapacitorHttp;
-  if (!native?.request || !window.Capacitor?.isNativePlatform?.()) throw new Error("La reconnexion durable nécessite l’app iPhone.");
+  if (!native?.request || !window.Capacitor?.isNativePlatform?.()) throw new Error("La reconnexion durable nécessite l’app mobile.");
   const response = await native.request({ url, method, headers: { Origin: "capacitor://localhost", ...(method === "POST" ? { "Content-Type": "application/json" } : {}) }, ...(data === undefined ? {} : { data }), connectTimeout: 8000, readTimeout: 10000, disableRedirects: true, responseType: "text" });
   if (response.status < 200 || response.status >= 300) throw new Error("Le service de découverte ou l’ordinateur est momentanément indisponible.");
   const text = typeof response.data === "string" ? response.data : JSON.stringify(response.data);

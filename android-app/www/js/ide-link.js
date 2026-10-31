@@ -34,7 +34,7 @@ async function franceIDECall(session, route, data = {}) {
 }
 async function scanFranceIDEAddress() {
   const scanner = window.Capacitor?.Plugins?.QRScanner;
-  if (!scanner?.scan) throw new Error("Le scan QR nécessite l’app iPhone. Tu peux aussi coller le lien d’association.");
+  if (!scanner?.scan) throw new Error("Le scan QR nécessite l’app mobile. Tu peux aussi coller le lien d’association.");
   const result = await scanner.scan();
   if (result.cancelled) return null;
   ideLinkAddress(result.value || "");
