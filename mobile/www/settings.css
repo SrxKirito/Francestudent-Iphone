@@ -123,6 +123,8 @@ body.settings-open { overflow: hidden; }
 }
 .settings-panel > .settings-section-title:not(:first-child) { margin-top: 24px; }
 .settings-hint { margin: -4px 0 12px; font-size: 0.82rem; color: var(--muted); line-height: 1.4; }
+#completion-notifications { max-width: 100%; }
+#completion-notifications-status { margin: 8px 0 12px; }
 .settings-panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
 .settings-panel-head .settings-hint { margin-bottom: 4px; }
 
