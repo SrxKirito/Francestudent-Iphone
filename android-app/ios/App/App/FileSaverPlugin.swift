@@ -204,7 +204,7 @@ import VisionKit
 public final class QRScannerPlugin: CAPPlugin, CAPBridgedPlugin, DataScannerViewControllerDelegate {
     public let identifier = "QRScannerPlugin"
     public let jsName = "QRScanner"
-    public let pluginMethods = [CAPPluginMethod(name: "scan", returnType: CAPPluginReturnPromise)]
+    public let pluginMethods: [CAPPluginMethod] = [CAPPluginMethod(name: "scan", returnType: CAPPluginReturnPromise)]
     private var pending: CAPPluginCall?
     private var scanner: DataScannerViewController?
 
