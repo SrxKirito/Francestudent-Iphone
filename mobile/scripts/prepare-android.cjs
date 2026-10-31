@@ -7,7 +7,7 @@ function cap(...args) {
 if (!fs.existsSync(path.join(root, 'android'))) cap('add', 'android');
 const java = path.join(root, 'android/app/src/main/java/org/francestudent/chat');
 fs.mkdirSync(java, {recursive:true});
-for (const name of ['MainActivity.java','IDELinkVaultPlugin.java','QRScannerPlugin.java']) fs.copyFileSync(path.join(root,'native-android',name), path.join(java,name));
+for (const name of ['MainActivity.java','IDELinkVaultPlugin.java','QRScannerPlugin.java']) fs.copyFileSync(path.join(root,'android-native',name), path.join(java,name));
 const gradle = path.join(root, 'android/app/build.gradle');
 let text = fs.readFileSync(gradle,'utf8');
 if (!text.includes('play-services-code-scanner')) text += "\ndependencies { implementation 'com.google.android.gms:play-services-code-scanner:16.1.0' }\n";

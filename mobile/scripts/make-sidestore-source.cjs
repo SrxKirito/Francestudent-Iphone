@@ -17,7 +17,7 @@ async function makeSource(ipaPath, { repo, commit, date = new Date().toISOString
   if (!/^\d+\.\d+(\.\d+)?$/.test(version)) throw new Error('Version iOS invalide.');
   const tag = 'ios-' + version;
   const sourceURL = `https://raw.githubusercontent.com/${repo}/main/source.json`;
-  const iconURL = `https://raw.githubusercontent.com/${repo}/${commit}/android-app/ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png`;
+  const iconURL = `https://raw.githubusercontent.com/${repo}/${commit}/mobile/ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png`;
   const appVersion = {
     version, date,
     localizedDescription: 'Dernière version de FranceStudent Chat : améliorations et corrections de l’application.',

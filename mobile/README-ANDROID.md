@@ -4,7 +4,7 @@ L’interface dans `www` est partagée avec iPhone : conversation, activité,
 sélection des outils, QR/PIN et reconnexion au projet mémorisé.
 
 `npm ci` puis `npm run sync` crée le projet Capacitor Android ignoré par Git,
-copie les plugins de `native-android` et synchronise les ressources. Les fichiers
+copie les plugins de `android-native` et synchronise les ressources. Les fichiers
 MainActivity et plugins générés viennent de ces sources : les modifier ici,
 puis relancer la préparation. `npm run apk` construit un APK debug avec Java 21
 et le SDK Android installés. Le workflow Compiler Android fournit aussi cet APK

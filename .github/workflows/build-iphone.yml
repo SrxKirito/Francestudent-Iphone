@@ -4,7 +4,17 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['android-app/**', '.github/workflows/build-iphone.yml']
+    paths:
+      - 'mobile/www/**'
+      - 'mobile/ios/**'
+      - 'mobile/package*.json'
+      - 'mobile/capacitor.config.json'
+      - 'mobile/scripts/copy-powerpoint.cjs'
+      - 'mobile/scripts/build-iphone.sh'
+      - 'mobile/scripts/verify-iphone.cjs'
+      - 'mobile/scripts/make-sidestore-source.cjs'
+      - 'mobile/test-*.cjs'
+      - '.github/workflows/build-iphone.yml'
 
 concurrency:
   group: sidestore-release
@@ -22,7 +32,7 @@ jobs:
       APP_BUILD: ${{ github.run_number }}
     defaults:
       run:
-        working-directory: android-app
+        working-directory: mobile
     steps:
       - uses: actions/checkout@v7.0.1
         with:
@@ -31,7 +41,7 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: android-app/package-lock.json
+          cache-dependency-path: mobile/package-lock.json
       - name: Installer les dépendances
         run: npm ci
       - name: Vérifier le projet iPhone
@@ -64,7 +74,7 @@ jobs:
         uses: actions/upload-artifact@v7.0.2
         with:
           name: FranceStudent-iPhone-SideStore
-          path: android-app/dist/FranceStudent-iPhone.ipa
+          path: mobile/dist/FranceStudent-iPhone.ipa
           if-no-files-found: error
           retention-days: 14
       - name: Publier la mise à jour SideStore

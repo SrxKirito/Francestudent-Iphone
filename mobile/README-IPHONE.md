@@ -12,7 +12,7 @@ La compilation doit s'exécuter sur macOS avec Xcode. Le workflow
 Il construit un IPA **non signé**, sans identifiant Apple ni certificat dans GitHub.
 SideStore se charge ensuite de la signature sur l'iPhone.
 
-1. Mettre le dossier `android-app` et `.github` à la racine d'un dépôt GitHub.
+1. Mettre le dossier `mobile` et `.github` à la racine d'un dépôt GitHub.
 2. Ouvrir **Actions → Compiler FranceStudent pour SideStore → Run workflow**.
 3. Attendre la fin de la compilation, puis télécharger l'artefact
    **FranceStudent-iPhone-SideStore** depuis la page du run.
@@ -29,12 +29,12 @@ Apple et de la configuration SideStore ; aucun compte Apple n'est stocké ici.
 Prérequis : Xcode 16 ou ultérieur, Node.js 22 ou ultérieur, CocoaPods.
 
 ```bash
-cd android-app
+cd mobile
 npm ci
 npm run ipa
 ```
 
-Résultat : `android-app/dist/FranceStudent-iPhone.ipa`.
+Résultat : `mobile/dist/FranceStudent-iPhone.ipa`.
 Le script refuse une exécution sous Windows et cible un véritable appareil arm64,
 pas un simulateur. Il lance `cap sync ios` avant chaque compilation.
 
@@ -148,7 +148,7 @@ Ajouter une seule fois cette URL dans les sources de SideStore :
 
 `https://raw.githubusercontent.com/SrxKirito/Francestudent-Iphone/main/source.json`
 
-Chaque modification de l’application sur `main` déclenche la compilation. Après les tests et une compilation réussie, le workflow publie une Release GitHub avec l’IPA et la source. La version iOS augmente à chaque nouveau run ; le numéro et la taille annoncés sont extraits de l’IPA compilé. SideStore peut ensuite proposer la mise à jour directement. L’installation et la signature restent gérées par SideStore.
+Sur `main`, les modifications iPhone ou communes déclenchent la compilation iPhone ; une modification limitée aux sources natives Android ne la déclenche pas. Après les tests et une compilation réussie, le workflow publie une Release GitHub avec l’IPA et la source. La version iOS augmente à chaque nouveau run ; le numéro et la taille annoncés sont extraits de l’IPA compilé. SideStore peut ensuite proposer la mise à jour directement. L’installation et la signature restent gérées par SideStore.
 
 ## Reprise, bibliothèque et notifications locales
 
