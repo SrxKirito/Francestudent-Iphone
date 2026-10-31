@@ -195,3 +195,70 @@ public final class AttachmentPickerPlugin: CAPPlugin, CAPBridgedPlugin, PHPicker
         var errorDescription: String? { "La sélection dépasse 50 Mo." }
     }
 }
+
+import AVFoundation
+import VisionKit
+
+@available(iOS 16.0, *)
+@objc(QRScannerPlugin)
+public final class QRScannerPlugin: CAPPlugin, CAPBridgedPlugin, DataScannerViewControllerDelegate {
+    public let identifier = "QRScannerPlugin"
+    public let jsName = "QRScanner"
+    public let pluginMethods = [CAPPluginMethod(name: "scan", returnType: CAPPluginReturnPromise)]
+    private var pending: CAPPluginCall?
+    private var scanner: DataScannerViewController?
+
+    @objc func scan(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            guard self.pending == nil else { call.reject("Un scan est déjà ouvert."); return }
+            guard DataScannerViewController.isSupported else { call.reject("Le scan QR n’est pas disponible sur cet iPhone. Colle l’adresse IDE Link."); return }
+            self.pending = call
+            AVCaptureDevice.requestAccess(for: .video) { granted in
+                DispatchQueue.main.async {
+                    guard granted else { self.finish(error: "Autorise la caméra dans les réglages iOS pour scanner le QR code."); return }
+                    guard DataScannerViewController.isAvailable, let host = self.bridge?.viewController, host.presentedViewController == nil else {
+                        self.finish(error: "La caméra est indisponible. Ferme les autres fenêtres puis réessaie."); return
+                    }
+                    let controller = DataScannerViewController(recognizedDataTypes: [.barcode(symbologies: [.qr])], qualityLevel: .balanced, recognizesMultipleItems: false, isHighFrameRateTrackingEnabled: false, isPinchToZoomEnabled: true, isGuidanceEnabled: true, isHighlightingEnabled: true)
+                    controller.delegate = self
+                    controller.modalPresentationStyle = .fullScreen
+                    self.scanner = controller
+                    let cancel = UIButton(type: .system)
+                    cancel.setTitle("Annuler", for: .normal)
+                    cancel.setTitleColor(.white, for: .normal)
+                    cancel.backgroundColor = UIColor.black.withAlphaComponent(0.7)
+                    cancel.layer.cornerRadius = 12
+                    cancel.translatesAutoresizingMaskIntoConstraints = false
+                    cancel.addTarget(self, action: #selector(self.cancelScan), for: .touchUpInside)
+                    controller.view.addSubview(cancel)
+                    NSLayoutConstraint.activate([cancel.topAnchor.constraint(equalTo: controller.view.safeAreaLayoutGuide.topAnchor, constant: 12), cancel.leadingAnchor.constraint(equalTo: controller.view.leadingAnchor, constant: 16), cancel.widthAnchor.constraint(equalToConstant: 110), cancel.heightAnchor.constraint(equalToConstant: 48)])
+                    host.present(controller, animated: true) {
+                        do { try controller.startScanning() }
+                        catch { self.finish(error: "Impossible de démarrer la caméra : " + error.localizedDescription) }
+                    }
+                }
+            }
+        }
+    }
+    @objc private func cancelScan() { finish() }
+    private func finish(value: String? = nil, error: String? = nil) {
+        guard let call = pending else { return }
+        pending = nil
+        let controller = scanner
+        scanner = nil
+        controller?.stopScanning()
+        let complete = {
+            if let error = error { call.reject(error) }
+            else if let value = value { call.resolve(["value": value]) }
+            else { call.resolve(["cancelled": true]) }
+        }
+        if let controller = controller { controller.dismiss(animated: true, completion: complete) }
+        else { complete() }
+    }
+    public func dataScanner(_ dataScanner: DataScannerViewController, didAdd addedItems: [RecognizedItem], allItems: [RecognizedItem]) {
+        for item in addedItems { if case .barcode(let barcode) = item, let value = barcode.payloadStringValue { finish(value: value); return } }
+    }
+    public func dataScanner(_ dataScanner: DataScannerViewController, becameUnavailableWithError error: DataScannerViewController.ScanningUnavailable) {
+        finish(error: "La caméra est devenue indisponible. Réessaie ou colle l’adresse.")
+    }
+}

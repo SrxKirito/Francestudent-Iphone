@@ -6,6 +6,7 @@ final class FranceStudentViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(FileSaverPlugin())
         bridge?.registerPluginInstance(AttachmentPickerPlugin())
         bridge?.registerPluginInstance(ChatStreamPlugin())
+        if #available(iOS 16.0, *) { bridge?.registerPluginInstance(QRScannerPlugin()) }
         webView?.scrollView.bounces = false
         webView?.scrollView.contentInsetAdjustmentBehavior = .never
     }

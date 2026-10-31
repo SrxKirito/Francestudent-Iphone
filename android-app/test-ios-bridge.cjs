@@ -16,7 +16,7 @@ const context = vm.createContext({
     const data = message.pluginId === 'ChatStream'
       ? message.methodName === 'start' ? { id: 'native', status: 200 }
         : message.methodName === 'read' ? reads++ === 0 ? { data: btoa('data: test\n\n'), done: false } : { done: true } : {}
-      : { files: [] };
+      : message.pluginId === "QRScanner" ? { value: "https://test.trycloudflare.com/" } : { files: [] };
     Promise.resolve().then(() => context.Capacitor.fromNative({ callbackId: message.callbackId, pluginId: message.pluginId, methodName: message.methodName, success: true, data }));
   } } } }
 });
@@ -26,7 +26,7 @@ vm.runInContext(fs.readFileSync(__dirname + '/node_modules/@capacitor/ios/Capaci
 assert.equal(context.Capacitor.getPlatform(), 'ios');
 assert.equal(context.Capacitor.registerPlugin, undefined, 'Le runtime embarqué ne fournit pas cette API du SDK web');
 // Same wrappers emitted by Capacitor JSExport.swift for registered native plugins.
-for (const [plugin, methods] of Object.entries({ ChatStream: ['start', 'read', 'cancel'], AttachmentPicker: ['pickPhotos', 'pickFiles'], FileSaver: ['save', 'preview'] })) {
+for (const [plugin, methods] of Object.entries({ ChatStream: ['start', 'read', 'cancel'], AttachmentPicker: ['pickPhotos', 'pickFiles'], FileSaver: ['save', 'preview'], QRScanner: ['scan'] })) {
   for (const method of methods) vm.runInContext(`(function(w){var p=w.Capacitor.Plugins;var t=p['${plugin}']=p['${plugin}']||{};t['${method}']=function(options){return w.Capacitor.nativePromise('${plugin}','${method}',options);};})(window);`, context);
 }
 const core = fs.readFileSync(__dirname + '/www/js/core.js', 'utf8');
@@ -43,5 +43,14 @@ context.showToast = message => { throw new Error(message); };
   assert.deepEqual(posted.filter(m => m.pluginId !== 'Console').map(m => m.pluginId + '.' + m.methodName), [
     'ChatStream.start', 'ChatStream.read', 'ChatStream.read', 'AttachmentPicker.pickPhotos', 'AttachmentPicker.pickFiles', 'FileSaver.preview'
   ]);
+  vm.runInContext(fs.readFileSync(__dirname + '/www/js/library.js', 'utf8'), context);
+  context.URL=URL;
+  assert.equal(await context.scanFranceIDEAddress(),'https://test.trycloudflare.com/');
+  assert.equal(posted.at(-1).pluginId,'QRScanner');
+  assert.equal(posted.at(-1).methodName,'scan');
+  context.Capacitor.Plugins.QRScanner.scan=async()=>({cancelled:true});
+  assert.equal(await context.scanFranceIDEAddress(),null);
+  context.Capacitor.Plugins.QRScanner.scan=async()=>({value:'javascript:alert(1)'});
+  await assert.rejects(()=>context.scanFranceIDEAddress());
   console.log('OK : véritable bridge iOS, sans registerPlugin : réponse, Photos, Fichiers et aperçu atteignent le canal natif.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

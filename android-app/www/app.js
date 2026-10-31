@@ -2,7 +2,7 @@
 
 function bindEvents() {
   $("library-open").addEventListener("click", openLibrary);
-  $("code-open").addEventListener("click", () => openLibrary("code"));
+  $("france-ide-open").addEventListener("click", openFranceIDE);
   setupSidebarGestures();
   $("login-form").addEventListener("submit", login);
   $("cookie-form").addEventListener("submit", cookieLogin);
