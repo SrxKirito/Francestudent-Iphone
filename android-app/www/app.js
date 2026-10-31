@@ -3,6 +3,9 @@
 function bindEvents() {
   $("library-open").addEventListener("click", openLibrary);
   $("france-ide-open").addEventListener("click", openFranceIDE);
+  $('library-columns').addEventListener('change',event=>{const columns=Number(event.target.value);if([1,2,3,4].includes(columns)){store.libraryColumns=columns;saveStore();}});
+  $('completion-notifications').addEventListener('click',toggleCompletionNotifications);
+  renderLibrarySettings();
   setupSidebarGestures();
   $("login-form").addEventListener("submit", login);
   $("cookie-form").addEventListener("submit", cookieLogin);

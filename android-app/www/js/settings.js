@@ -14,6 +14,7 @@ function settingsOpen() {
 }
 
 function openSettings(tab) {
+  if(typeof renderLibrarySettings === "function")renderLibrarySettings();
   const modal = $("settings-modal");
   if (!modal) return;
   const reopening = modal.classList.contains("is-closing");

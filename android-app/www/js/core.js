@@ -39,6 +39,7 @@ function loadStore() {
     webSearch: saved.webSearch === true,
     webSearchMode: ["open", "filtered", "disabled"].includes(saved.webSearchMode) ? saved.webSearchMode : "open",
     customInstructionsManaged: saved.customInstructionsManaged === true,
+    libraryColumns: [1,2,3,4].includes(saved.libraryColumns) ? saved.libraryColumns : 3,
     completionNotifications: saved.completionNotifications === true,
     imageMode: saved.imageMode === true,
     powerpointMode: false,

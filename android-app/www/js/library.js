@@ -97,19 +97,12 @@ async function openLibrary(initialKind = '*') {
   closeSidebar();
   document.getElementById('file-library')?.remove();
   const dialog=document.createElement('dialog');dialog.id='file-library';dialog.className='file-library';
-  dialog.innerHTML='<header><div><h2>Bibliothèque</h2><p>Fichiers et images conservés sur ce téléphone.</p></div><button type="button" data-close aria-label="Fermer">×</button></header><section data-jobs></section><div class="library-filters"><input type="search" placeholder="Rechercher un fichier" aria-label="Rechercher un fichier"><select data-project aria-label="Filtrer par projet"><option value="*">Tous les projets</option><option value="">Sans projet</option></select><select data-kind aria-label="Type de fichier"><option value="*">Tous les types</option><option value="image">Images</option><option value="document">Documents</option><option value="presentation">PowerPoint</option><option value="ext:py">Python (.py)</option><option value="ext:js">JavaScript (.js)</option><option value="ext:ts">TypeScript (.ts)</option><option value="ext:html">HTML (.html)</option><option value="ext:css">CSS (.css)</option><option value="ext:json">JSON (.json)</option><option value="other">Autres fichiers</option></select><select data-direction aria-label="Origine"><option value="*">Envoyés et générés</option><option value="sent">Envoyés</option><option value="generated">Générés</option></select></div><p data-status role="status">Chargement…</p><div class="library-grid"></div><footer><button type="button" data-notifications></button><small>Notifications locales pendant l’exécution en arrière-plan. Pas de notification distante quand l’app est fermée.</small></footer>';
+  dialog.innerHTML='<header><div><h2>Bibliothèque</h2><p>Touchez un fichier pour retrouver son chat.</p></div><button type="button" data-close aria-label="Fermer">×</button></header><section data-jobs></section><div class="library-filters"><input type="search" placeholder="Rechercher un fichier" aria-label="Rechercher un fichier"><select data-project aria-label="Filtrer par projet"><option value="*">Tous les projets</option><option value="">Sans projet</option></select><select data-kind aria-label="Type de fichier"><option value="*">Tous les types</option><option value="image">Images</option><option value="document">Documents</option><option value="presentation">PowerPoint</option><option value="ext:py">Python (.py)</option><option value="ext:js">JavaScript (.js)</option><option value="ext:ts">TypeScript (.ts)</option><option value="ext:html">HTML (.html)</option><option value="ext:css">CSS (.css)</option><option value="ext:json">JSON (.json)</option><option value="other">Autres fichiers</option></select><select data-direction aria-label="Origine"><option value="*">Envoyés et générés</option><option value="sent">Envoyés</option><option value="generated">Générés</option></select></div><p data-status role="status">Chargement…</p><div class="library-grid"></div>';
   document.body.append(dialog);dialog.showModal();
   const resources=[];let observer;
   dialog.addEventListener('close',()=>{observer?.disconnect();for(const url of resources)URL.revokeObjectURL(url);},{once:true});
   dialog.querySelector('[data-close]').onclick=()=>{dialog.close();dialog.remove();};
   dialog.addEventListener('close',()=>dialog.remove(),{once:true});
-  const notifications=dialog.querySelector('[data-notifications]');
-  notifications.textContent=store.completionNotifications?'Désactiver les notifications':'Activer les notifications';
-  notifications.disabled=window.Capacitor?.getPlatform?.()!=='ios';
-  notifications.onclick=async()=>{
-    try { const result=await window.Capacitor.Plugins.ChatStream.configureNotifications({enabled:!store.completionNotifications});store.completionNotifications=result.enabled===true;saveStore();notifications.textContent=store.completionNotifications?'Désactiver les notifications':'Activer les notifications';if(!result.enabled)showToast('Notifications désactivées. Vérifie les réglages iOS si tu souhaites les autoriser.'); }
-    catch(error){showToast(error.message,true);}
-  };
   const jobs=dialog.querySelector('[data-jobs]');
   for(const conversation of store.conversations.filter(c=>c.pendingResponse && (!c.pendingResponse.owner || c.pendingResponse.owner===store.profile?.email))) {
     const row=document.createElement('div');row.className='library-job';
@@ -128,6 +121,7 @@ async function openLibrary(initialKind = '*') {
     for(const conversation of store.conversations)await indexConversationFiles(conversation);
     const records=await libraryRecords();
     const search=dialog.querySelector('input'),kind=dialog.querySelector('[data-kind]'),direction=dialog.querySelector('[data-direction]'),grid=dialog.querySelector('.library-grid');
+    grid.style.setProperty("--library-columns",String(store.libraryColumns||3));
     kind.value=initialKind;
     const render=()=>{
       observer?.disconnect();for(const url of resources.splice(0))URL.revokeObjectURL(url);
@@ -139,15 +133,22 @@ async function openLibrary(initialKind = '*') {
       for(const record of list) {
         const card=document.createElement('article');card.className='library-card';
         const open=document.createElement('button');open.className='library-open';const thumb=document.createElement('span');thumb.className='library-thumbnail';thumb.textContent='Chargement de l’aperçu…';thumb.libraryRecord=record;open.append(thumb);
-        const name=document.createElement('strong');name.textContent=record.name;open.append(name);open.title='Aperçu';
-        open.onclick=async()=>{open.disabled=true;try{const file=await libraryBlob(record);dialog.close();await previewBlob(file.name,file.blob);}catch(e){dialog.querySelector('[data-status]').textContent=e.message;}finally{open.disabled=false;}};
+        const name=document.createElement('strong');name.textContent=record.name;open.append(name);open.title='Ouvrir le chat';
+        open.onclick=()=>openLibraryChat(record,dialog);
+        const actions=document.createElement('details');actions.className='library-actions';
+        const summary=document.createElement('summary');summary.textContent='•••';summary.setAttribute('aria-label','Actions pour '+record.name);
+        const menu=document.createElement('div');menu.className='library-card-menu';
+        const preview=document.createElement('button');preview.textContent='Aperçu';
+        preview.onclick=async()=>{preview.disabled=true;try{const file=await libraryBlob(record);dialog.close();await previewBlob(file.name,file.blob);}catch(e){dialog.querySelector('[data-status]').textContent=e.message;}finally{preview.disabled=false;}};
+        const dismiss=document.createElement('button');dismiss.textContent='Fermer';dismiss.onclick=()=>{actions.open=false;};
+        menu.append(preview,dismiss);actions.append(summary,menu);
         const meta=document.createElement('small');meta.textContent=(record.direction==='sent'?'Envoyé':'Généré')+' · '+new Date(record.created).toLocaleDateString('fr-FR');
         const project=document.createElement('select');project.setAttribute('aria-label','Classer '+record.name+' dans un projet');
         const none=document.createElement('option');none.value='';none.textContent='Sans projet';project.append(none);
         for(const item of projects){const option=document.createElement('option');option.value=item.id;option.textContent=item.name;project.append(option);}project.value=record.projectId||'';
         project.onchange=async()=>{record.projectId=project.value;try{await libraryWrite(record);render();}catch(e){showToast(e.message,true);}};
         const save=document.createElement('button');save.textContent='Enregistrer';save.onclick=async()=>{save.disabled=true;try{const file=await libraryBlob(record);await saveFile(file.name,new Uint8Array(await file.blob.arrayBuffer()));showToast('Fichier enregistré.');}catch(e){showToast(e.message,true);}finally{save.disabled=false;}};
-        card.append(open,meta,project,save);grid.append(card);observer.observe(thumb);
+        menu.insertBefore(project,dismiss);menu.insertBefore(save,dismiss);card.append(open,meta,actions);grid.append(card);observer.observe(thumb);
       }
     };
     for(const field of [search,projectSelect,kind,direction])field.addEventListener('input',render);
@@ -227,4 +228,24 @@ function setupFranceIDE(dialog) {
     try{const address=ideLinkAddress(input.value);try{localStorage.setItem('frst-ide-link-address',address);}catch{}window.open(address,'_blank','noopener,noreferrer');status.textContent='Saisis le code PIN dans IDE Link pour terminer la connexion.';}
     catch(error){status.textContent=error.message;}
   };
+}
+
+function openLibraryChat(record,dialog) {
+  if(busy){showToast('Attends la fin de la réponse avant de changer de chat.');return;}
+  if(!store.conversations.some(item=>item.id===record.conversationId)){showToast('Le chat d’origine n’est plus disponible sur ce téléphone.',true);return;}
+  dialog.close();
+  openConversation(record.conversationId);
+}
+function renderLibrarySettings() {
+  const columns=$('library-columns'),button=$('completion-notifications');
+  if(columns)columns.value=String(store.libraryColumns||3);
+  if(button){button.textContent=store.completionNotifications?'Désactiver les notifications':'Activer les notifications';button.disabled=window.Capacitor?.getPlatform?.()!=='ios';}
+}
+async function toggleCompletionNotifications() {
+  const button=$('completion-notifications'),status=$('completion-notifications-status');button.disabled=true;
+  try{
+    const result=await window.Capacitor.Plugins.ChatStream.configureNotifications({enabled:!store.completionNotifications});
+    store.completionNotifications=result.enabled===true;saveStore();
+    status.textContent=result.enabled?'Notifications locales activées en arrière-plan.':'Notifications désactivées. Si nécessaire, autorise-les dans les réglages iOS.';
+  }catch(error){status.textContent=error.message;}finally{renderLibrarySettings();}
 }
