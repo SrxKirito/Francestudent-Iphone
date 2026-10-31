@@ -3,7 +3,7 @@
   "identifier": "org.francestudent.source",
   "sourceURL": "https://raw.githubusercontent.com/SrxKirito/Francestudent-Iphone/main/source.json",
   "subtitle": "Mises à jour de FranceStudent pour iPhone",
-  "iconURL": "https://raw.githubusercontent.com/SrxKirito/Francestudent-Iphone/2e2d657d7f7f32793fcfa46a803492a52c36191c/android-app/ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png",
+  "iconURL": "https://raw.githubusercontent.com/SrxKirito/Francestudent-Iphone/9a3192b905bdf31e833ced6ad099f1c13aa1e343/android-app/ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png",
   "website": "https://github.com/SrxKirito/Francestudent-Iphone",
   "tintColor": "#2563EB",
   "apps": [
@@ -12,19 +12,19 @@
       "bundleIdentifier": "org.francestudent.chat",
       "developerName": "FranceStudent",
       "localizedDescription": "Chat IA, documents, images et présentations PowerPoint.",
-      "iconURL": "https://raw.githubusercontent.com/SrxKirito/Francestudent-Iphone/2e2d657d7f7f32793fcfa46a803492a52c36191c/android-app/ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png",
+      "iconURL": "https://raw.githubusercontent.com/SrxKirito/Francestudent-Iphone/9a3192b905bdf31e833ced6ad099f1c13aa1e343/android-app/ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png",
       "tintColor": "#2563EB",
-      "version": "1.1.18",
-      "versionDate": "2026-10-31T09:59:26.949Z",
-      "downloadURL": "https://github.com/SrxKirito/Francestudent-Iphone/releases/download/ios-1.1.18/FranceStudent-iPhone.ipa",
-      "size": 2672038,
+      "version": "1.1.19",
+      "versionDate": "2026-10-31T10:01:13.430Z",
+      "downloadURL": "https://github.com/SrxKirito/Francestudent-Iphone/releases/download/ios-1.1.19/FranceStudent-iPhone.ipa",
+      "size": 2672067,
       "versions": [
         {
-          "version": "1.1.18",
-          "date": "2026-10-31T09:59:26.949Z",
+          "version": "1.1.19",
+          "date": "2026-10-31T10:01:13.430Z",
           "localizedDescription": "Dernière version de FranceStudent Chat : améliorations et corrections de l’application.",
-          "downloadURL": "https://github.com/SrxKirito/Francestudent-Iphone/releases/download/ios-1.1.18/FranceStudent-iPhone.ipa",
-          "size": 2672038,
+          "downloadURL": "https://github.com/SrxKirito/Francestudent-Iphone/releases/download/ios-1.1.19/FranceStudent-iPhone.ipa",
+          "size": 2672067,
           "minOSVersion": "16.4"
         }
       ],
