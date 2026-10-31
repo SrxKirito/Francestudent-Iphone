@@ -97,7 +97,7 @@ async function openLibrary(initialKind = '*') {
   closeSidebar();
   document.getElementById('file-library')?.remove();
   const dialog=document.createElement('dialog');dialog.id='file-library';dialog.className='file-library';
-  dialog.innerHTML='<header><div><h2>Bibliothèque</h2><p>Touchez un fichier pour retrouver son chat.</p></div><button type="button" data-close aria-label="Fermer">×</button></header><section data-jobs></section><div class="library-filters"><input type="search" placeholder="Rechercher un fichier" aria-label="Rechercher un fichier"><select data-project aria-label="Filtrer par projet"><option value="*">Tous les projets</option><option value="">Sans projet</option></select><select data-kind aria-label="Type de fichier"><option value="*">Tous les types</option><option value="image">Images</option><option value="document">Documents</option><option value="presentation">PowerPoint</option><option value="ext:py">Python (.py)</option><option value="ext:js">JavaScript (.js)</option><option value="ext:ts">TypeScript (.ts)</option><option value="ext:html">HTML (.html)</option><option value="ext:css">CSS (.css)</option><option value="ext:json">JSON (.json)</option><option value="other">Autres fichiers</option></select><select data-direction aria-label="Origine"><option value="*">Envoyés et générés</option><option value="sent">Envoyés</option><option value="generated">Générés</option></select></div><p data-status role="status">Chargement…</p><div class="library-grid"></div>';
+  dialog.innerHTML='<header><div><h2>Bibliothèque</h2><p>Touchez un fichier pour afficher son aperçu.</p></div><button type="button" data-close aria-label="Fermer">×</button></header><section data-jobs></section><div class="library-filters"><input type="search" placeholder="Rechercher un fichier" aria-label="Rechercher un fichier"><select data-project aria-label="Filtrer par projet"><option value="*">Tous les projets</option><option value="">Sans projet</option></select><select data-kind aria-label="Type de fichier"><option value="*">Tous les types</option><option value="image">Images</option><option value="document">Documents</option><option value="presentation">PowerPoint</option><option value="ext:py">Python (.py)</option><option value="ext:js">JavaScript (.js)</option><option value="ext:ts">TypeScript (.ts)</option><option value="ext:html">HTML (.html)</option><option value="ext:css">CSS (.css)</option><option value="ext:json">JSON (.json)</option><option value="other">Autres fichiers</option></select><select data-direction aria-label="Origine"><option value="*">Envoyés et générés</option><option value="sent">Envoyés</option><option value="generated">Générés</option></select></div><p data-status role="status">Chargement…</p><div class="library-grid"></div>';
   document.body.append(dialog);dialog.showModal();
   const resources=[];let observer;
   dialog.addEventListener('close',()=>{observer?.disconnect();for(const url of resources)URL.revokeObjectURL(url);},{once:true});
@@ -133,15 +133,17 @@ async function openLibrary(initialKind = '*') {
       for(const record of list) {
         const card=document.createElement('article');card.className='library-card';
         const open=document.createElement('button');open.className='library-open';const thumb=document.createElement('span');thumb.className='library-thumbnail';thumb.textContent='Chargement de l’aperçu…';thumb.libraryRecord=record;open.append(thumb);
-        const name=document.createElement('strong');name.textContent=record.name;open.append(name);open.title='Ouvrir le chat';
-        open.onclick=()=>openLibraryChat(record,dialog);
+        const name=document.createElement('strong');name.textContent=record.name;open.append(name);open.title='Aperçu';
+
         const actions=document.createElement('details');actions.className='library-actions';
         const summary=document.createElement('summary');summary.textContent='•••';summary.setAttribute('aria-label','Actions pour '+record.name);
         const menu=document.createElement('div');menu.className='library-card-menu';
         const preview=document.createElement('button');preview.textContent='Aperçu';
         preview.onclick=async()=>{preview.disabled=true;try{const file=await libraryBlob(record);dialog.close();await previewBlob(file.name,file.blob);}catch(e){dialog.querySelector('[data-status]').textContent=e.message;}finally{preview.disabled=false;}};
+        open.onclick=preview.onclick;
+        const chat=document.createElement('button');chat.textContent='Ouvrir le chat';chat.onclick=()=>openLibraryChat(record,dialog);
         const dismiss=document.createElement('button');dismiss.textContent='Fermer';dismiss.onclick=()=>{actions.open=false;};
-        menu.append(preview,dismiss);actions.append(summary,menu);
+        menu.append(chat,dismiss);actions.append(summary,menu);
         const meta=document.createElement('small');meta.textContent=(record.direction==='sent'?'Envoyé':'Généré')+' · '+new Date(record.created).toLocaleDateString('fr-FR');
         const project=document.createElement('select');project.setAttribute('aria-label','Classer '+record.name+' dans un projet');
         const none=document.createElement('option');none.value='';none.textContent='Sans projet';project.append(none);
@@ -237,8 +239,11 @@ function openLibraryChat(record,dialog) {
   openConversation(record.conversationId);
 }
 function renderLibrarySettings() {
-  const columns=$('library-columns'),button=$('completion-notifications');
-  if(columns)columns.value=String(store.libraryColumns||3);
+  const button=$('completion-notifications');
+  for(const choice of document.querySelectorAll('[data-library-columns]')){
+    const selected=Number(choice.dataset.libraryColumns)===(store.libraryColumns||3);
+    choice.setAttribute('aria-checked',String(selected));choice.tabIndex=selected?0:-1;
+  }
   if(button){button.textContent=store.completionNotifications?'Désactiver les notifications':'Activer les notifications';button.disabled=window.Capacitor?.getPlatform?.()!=='ios';}
 }
 async function toggleCompletionNotifications() {
@@ -248,4 +253,9 @@ async function toggleCompletionNotifications() {
     store.completionNotifications=result.enabled===true;saveStore();
     status.textContent=result.enabled?'Notifications locales activées en arrière-plan.':'Notifications désactivées. Si nécessaire, autorise-les dans les réglages iOS.';
   }catch(error){status.textContent=error.message;}finally{renderLibrarySettings();}
+}
+
+function setLibraryColumns(columns) {
+  if(![1,2,3,4].includes(columns))return;
+  store.libraryColumns=columns;saveStore();renderLibrarySettings();
 }

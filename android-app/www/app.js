@@ -3,7 +3,16 @@
 function bindEvents() {
   $("library-open").addEventListener("click", openLibrary);
   $("france-ide-open").addEventListener("click", openFranceIDE);
-  $('library-columns').addEventListener('change',event=>{const columns=Number(event.target.value);if([1,2,3,4].includes(columns)){store.libraryColumns=columns;saveStore();}});
+  const layouts=Array.from(document.querySelectorAll('[data-library-columns]'));
+  for(const button of layouts){
+    button.addEventListener('click',()=>setLibraryColumns(Number(button.dataset.libraryColumns)));
+    button.addEventListener('keydown',event=>{
+      const key=event.key;if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(key))return;
+      event.preventDefault();const index=layouts.indexOf(button);
+      const next=key==='Home'?0:key==='End'?layouts.length-1:(index+(['ArrowLeft','ArrowUp'].includes(key)?-1:1)+layouts.length)%layouts.length;
+      setLibraryColumns(Number(layouts[next].dataset.libraryColumns));layouts[next].focus();
+    });
+  }
   $('completion-notifications').addEventListener('click',toggleCompletionNotifications);
   renderLibrarySettings();
   setupSidebarGestures();
