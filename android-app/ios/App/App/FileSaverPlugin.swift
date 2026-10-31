@@ -4,6 +4,38 @@ import UIKit
 import PhotosUI
 import UniformTypeIdentifiers
 import QuickLook
+import Security
+
+// L’association IDE Link reste dans le Trousseau de cet appareil.
+@objc(IDELinkVaultPlugin)
+public final class IDELinkVaultPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "IDELinkVaultPlugin"
+    public let jsName = "IDELinkVault"
+    public let pluginMethods: [CAPPluginMethod] = [CAPPluginMethod(name: "read", returnType: CAPPluginReturnPromise), CAPPluginMethod(name: "save", returnType: CAPPluginReturnPromise), CAPPluginMethod(name: "remove", returnType: CAPPluginReturnPromise)]
+    private var query: [String: Any] { [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: "org.francestudent.chat.ide-link", kSecAttrAccount as String: "remembered-computer"] }
+    @objc func read(_ call: CAPPluginCall) {
+        var request = query; request[kSecReturnData as String] = true; request[kSecMatchLimit as String] = kSecMatchLimitOne
+        var result: CFTypeRef?
+        let status = SecItemCopyMatching(request as CFDictionary, &result)
+        if status == errSecItemNotFound { call.resolve([:]); return }
+        guard status == errSecSuccess, let data = result as? Data, data.count <= 16384, let value = String(data: data, encoding: .utf8) else { call.reject("Le coffre iPhone est indisponible. Déverrouille l’appareil puis réessaie."); return }
+        call.resolve(["value": value])
+    }
+    @objc func save(_ call: CAPPluginCall) {
+        guard let value = call.getString("value"), let data = value.data(using: .utf8), data.count <= 16384,
+              (try? JSONSerialization.jsonObject(with: data)) is [String: Any] else { call.reject("Association IDE Link invalide."); return }
+        let changes: [String: Any] = [kSecValueData as String: data, kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly]
+        var status = SecItemUpdate(query as CFDictionary, changes as CFDictionary)
+        if status == errSecItemNotFound { var item = query; item.merge(changes) { _, value in value }; status = SecItemAdd(item as CFDictionary, nil) }
+        guard status == errSecSuccess else { call.reject("L’association ne peut pas être mémorisée dans le coffre iPhone."); return }
+        call.resolve([:])
+    }
+    @objc func remove(_ call: CAPPluginCall) {
+        let status = SecItemDelete(query as CFDictionary)
+        guard status == errSecSuccess || status == errSecItemNotFound else { call.reject("L’association ne peut pas être retirée du coffre iPhone."); return }
+        call.resolve([:])
+    }
+}
 
 // Les fichiers restent dans Documents, accessible depuis l'app Fichiers d'iOS.
 @objc(FileSaverPlugin)

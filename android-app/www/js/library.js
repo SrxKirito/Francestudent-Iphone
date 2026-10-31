@@ -190,48 +190,6 @@ async function libraryThumbnail(node, record, resources) {
     text(result?.text||'Aperçu indisponible pour ce format');
   }catch{node.textContent='Aperçu indisponible · toucher pour ouvrir';}
 }
-
-function ideLinkAddress(value) {
-  const url=new URL(value.trim());
-  if(url.protocol!=='https:'||url.username||url.password||url.search||url.hash||url.pathname!=='/')throw new Error('Colle l’adresse HTTPS IDE Link affichée sur l’ordinateur, sans code PIN.');
-  return url.origin+'/';
-}
-function openFranceIDE() {
-  closeSidebar();
-  document.getElementById('france-ide')?.close();
-  const dialog=document.createElement('dialog');dialog.id='france-ide';dialog.className='file-library france-ide';
-  dialog.innerHTML='<header><h2>France IDE</h2><button type="button" data-close aria-label="Fermer">×</button></header><section data-codex></section>';
-  document.body.append(dialog);setupFranceIDE(dialog);dialog.showModal();
-  dialog.querySelector('[data-close]').onclick=()=>dialog.close();
-  const reveal=()=>requestAnimationFrame(()=>{const input=dialog.querySelector('input');if(document.activeElement===input)input.scrollIntoView({block:'center'});});
-  for(const name of ['keyboardDidShow','resize'])window.addEventListener(name,reveal);
-  window.visualViewport?.addEventListener('resize',reveal);
-  dialog.querySelector('input').addEventListener('focus',reveal);
-  dialog.addEventListener('close',()=>{for(const name of ['keyboardDidShow','resize'])window.removeEventListener(name,reveal);window.visualViewport?.removeEventListener('resize',reveal);dialog.remove();},{once:true});
-}
-async function scanFranceIDEAddress() {
-  const scanner=window.Capacitor?.Plugins?.QRScanner;
-  if(!scanner?.scan)throw new Error('Le scan QR nécessite la dernière version iPhone. Tu peux aussi coller l’adresse.');
-  const result=await scanner.scan();
-  return result.cancelled ? null : ideLinkAddress(result.value||'');
-}
-function setupFranceIDE(dialog) {
-  const panel=dialog.querySelector('[data-codex]');
-  panel.innerHTML='<p>Connecte-toi à ton ordinateur avec IDE Link.</p><button type="button" data-scan>Scanner le QR code</button><form><label>Adresse IDE Link<input type="url" required placeholder="https://…trycloudflare.com" aria-label="Adresse IDE Link" autocomplete="off" autocapitalize="off" spellcheck="false"></label><button type="submit">Se connecter</button><p role="status"></p></form><details><summary>Comment se connecter ?</summary><ol><li>Ouvre ton projet dans FranceStudents IDE sur l’ordinateur.</li><li>Active IDE Link et scanne son QR code, ou colle son adresse HTTPS.</li><li>Appuie sur Se connecter puis saisis le PIN affiché sur l’ordinateur.</li></ol><small>L’ordinateur et IDE Link doivent rester allumés. La connexion s’ouvre dans le navigateur. Les fichiers du téléphone ne sont pas synchronisés automatiquement.</small></details>';
-  const input=panel.querySelector('input'),status=panel.querySelector('[role="status"]'),scan=panel.querySelector('[data-scan]');
-  try{input.value=localStorage.getItem('frst-ide-link-address')||'';}catch{}
-  scan.onclick=async()=>{
-    scan.disabled=true;input.blur();status.textContent='';
-    try{const address=await scanFranceIDEAddress();if(address){input.value=address;status.textContent='QR code reconnu. Appuie sur Se connecter.';}}
-    catch(error){status.textContent=error.message;}finally{scan.disabled=false;}
-  };
-  panel.querySelector('form').onsubmit=event=>{
-    event.preventDefault();
-    try{const address=ideLinkAddress(input.value);try{localStorage.setItem('frst-ide-link-address',address);}catch{}window.open(address,'_blank','noopener,noreferrer');status.textContent='Saisis le code PIN dans IDE Link pour terminer la connexion.';}
-    catch(error){status.textContent=error.message;}
-  };
-}
-
 function openLibraryChat(record,dialog) {
   if(busy){showToast('Attends la fin de la réponse avant de changer de chat.');return;}
   if(!store.conversations.some(item=>item.id===record.conversationId)){showToast('Le chat d’origine n’est plus disponible sur ce téléphone.',true);return;}

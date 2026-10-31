@@ -23,7 +23,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Prendre une photo pour la joindre à votre discussion.</string>
+	<string>Scanner le QR code de votre ordinateur ou prendre une photo à joindre à votre discussion.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Choisir une image à joindre à votre discussion ou à utiliser comme photo de profil.</string>
 	<key>NSMicrophoneUsageDescription</key>

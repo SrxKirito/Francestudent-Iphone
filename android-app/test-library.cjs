@@ -29,9 +29,9 @@ for(const name of ['test.py','main.js','script.cjs','app.tsx','query.sql','main.
 assert.equal(context.libraryMatches({name:'MAIN.PY',kind:'other'},'main','*','code','*'),true);
 assert.equal(context.libraryMatches({name:'MAIN.PY',kind:'other'},'','*','ext:py','*'),true);
 assert.equal(context.libraryMatches({name:'main.js',kind:'code'},'','*','ext:py','*'),false);
-const urlContext=vm.createContext({URL,store:{},Date});
-vm.runInContext(fs.readFileSync(__dirname+'/www/js/library.js','utf8'),urlContext);
-assert.equal(urlContext.ideLinkAddress('https://example.trycloudflare.com/'),'https://example.trycloudflare.com/');
+const urlContext=vm.createContext({URL,URLSearchParams,store:{},Date});
+vm.runInContext(fs.readFileSync(__dirname+'/www/js/ide-link.js','utf8'),urlContext);
+assert.equal(urlContext.ideLinkAddress('https://example.trycloudflare.com/').origin,'https://example.trycloudflare.com');
 for(const url of ['javascript:alert(1)','http://example.com','https://user:secret@example.com','https://example.com/?token=secret'])assert.throws(()=>urlContext.ideLinkAddress(url));
 let opened;
 const routeContext=vm.createContext({store:{conversations:[{id:'chat'}]},busy:false,showToast(){},openConversation(id){opened=id;}});

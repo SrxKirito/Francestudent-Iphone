@@ -26,7 +26,7 @@ vm.runInContext(fs.readFileSync(__dirname + '/node_modules/@capacitor/ios/Capaci
 assert.equal(context.Capacitor.getPlatform(), 'ios');
 assert.equal(context.Capacitor.registerPlugin, undefined, 'Le runtime embarqué ne fournit pas cette API du SDK web');
 // Same wrappers emitted by Capacitor JSExport.swift for registered native plugins.
-for (const [plugin, methods] of Object.entries({ ChatStream: ['start', 'read', 'cancel'], AttachmentPicker: ['pickPhotos', 'pickFiles'], FileSaver: ['save', 'preview'], QRScanner: ['scan'] })) {
+for (const [plugin, methods] of Object.entries({ ChatStream: ['start', 'read', 'cancel'], AttachmentPicker: ['pickPhotos', 'pickFiles'], FileSaver: ['save', 'preview'], QRScanner: ['scan'], IDELinkVault: ['read', 'save', 'remove'] })) {
   for (const method of methods) vm.runInContext(`(function(w){var p=w.Capacitor.Plugins;var t=p['${plugin}']=p['${plugin}']||{};t['${method}']=function(options){return w.Capacitor.nativePromise('${plugin}','${method}',options);};})(window);`, context);
 }
 const core = fs.readFileSync(__dirname + '/www/js/core.js', 'utf8');
@@ -45,9 +45,16 @@ context.showToast = message => { throw new Error(message); };
   ]);
   vm.runInContext(fs.readFileSync(__dirname + '/www/js/library.js', 'utf8'), context);
   context.URL=URL;
+  context.URLSearchParams=URLSearchParams;
+  vm.runInContext(fs.readFileSync(__dirname + '/www/js/ide-link.js', 'utf8'), context);
   assert.equal(await context.scanFranceIDEAddress(),'https://test.trycloudflare.com/');
   assert.equal(posted.at(-1).pluginId,'QRScanner');
   assert.equal(posted.at(-1).methodName,'scan');
+  for (const method of ['read', 'save', 'remove']) {
+    await context.Capacitor.Plugins.IDELinkVault[method](method === 'save' ? { value: '{"v":1}' } : {});
+    assert.equal(posted.at(-1).pluginId, 'IDELinkVault');
+    assert.equal(posted.at(-1).methodName, method);
+  }
   context.Capacitor.Plugins.QRScanner.scan=async()=>({cancelled:true});
   assert.equal(await context.scanFranceIDEAddress(),null);
   context.Capacitor.Plugins.QRScanner.scan=async()=>({value:'javascript:alert(1)'});

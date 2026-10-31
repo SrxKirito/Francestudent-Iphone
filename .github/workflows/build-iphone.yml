@@ -45,6 +45,8 @@ jobs:
           node test-preview.cjs
           node test-native-stream.cjs
           node test-ios-bridge.cjs
+          node test-ide-link.cjs
+          node test-ide-link-remembered.cjs
           node test-server-resume.cjs
           node test-library.cjs
           node test-background-stream.cjs

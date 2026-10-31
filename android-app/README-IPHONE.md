@@ -50,6 +50,82 @@ pas un simulateur. Il lance `cap sync ios` avant chaque compilation.
 
 ## Vérifications
 
+### Contrôler l’agent de l’ordinateur avec IDE Link
+
+Dans **France IDE**, le scanner QR natif associe l’app à un projet Code de
+FranceStudent IDE et ouvre sa conversation directement dans l’app. Les deux clients
+doivent intégrer le protocole IDE Link 2. Le lien manuel avec PIN reste disponible.
+Le panneau propose conversation en direct, plan, questions et confirmations,
+file, consignes Agent/Plan, arrêt et pièces jointes (4 fichiers, 2 Mio).
+Le PC doit rester allumé et connecté à Internet ; la génération tourne sur le PC.
+
+Le QR contient un ticket privé à usage unique valable dix minutes. Le jeton de
+session reste en mémoire : fermer le panneau suspend son suivi. Sans mémorisation,
+quitter le processus de l’app nécessite une nouvelle association. **Déconnecter** révoque
+l’accès côté IDE. Ne partage pas de capture du QR. La reprise de lecture au retour
+dans le panneau n’envoie aucune nouvelle consigne. Un envoi sans réponse réseau
+doit être vérifié dans l’IDE avant d’être soumis de nouveau.
+
+Implémentation : `www/js/ide-link.js` et `www/ide-link.css`, avec les plugins
+`QRScanner` et `CapacitorHttp` déjà présents. Le client accepte uniquement les
+adresses HTTPS publiques de l’IDE, temporaires ou fixes, et refuse les IP, noms
+locaux, ports personnalisés et redirections. Pas de nouveau
+paquet natif tiers. En cas de caméra indisponible, coller le lien QR
+ou saisir l’adresse et le PIN affichés par l’IDE.
+
+Pour scanner une seule fois, coche **Mémoriser cet iPhone pour ce projet** sur
+le PC avant d’activer IDE Link, puis scanne dans l’app à jour. Au redémarrage,
+rouvre le même projet Code sur le PC et France IDE sur l’iPhone. Le tunnel peut
+changer d’adresse : l’app retrouve le PC via des annonces AES-256-GCM sur le
+service public [ntfy.sh](https://docs.ntfy.sh/faq/), sans domaine, compte ntfy ou
+serveur à héberger. Le PC doit rester éveillé et connecté ; fermé, il ne répond pas.
+Cette autorisation couvre aussi les prochaines conversations du même projet.
+
+`www/js/ide-link-remembered.js` conserve les identifiants durables dans le
+Trousseau via le pont local `IDELinkVault` ajouté à `FileSaverPlugin.swift`
+et enregistré dans `FranceStudentViewController.swift`. Il utilise le framework
+Security d’iOS, sans dépendance tierce, localStorage ou synchronisation iCloud.
+Une preuve HMAC mutuelle, liée à l’origine HTTPS et à un défi à usage unique,
+vérifie le PC avant d’obtenir un nouveau jeton de session. Les annonces publiques
+ne contiennent ni clés, conversation, fichier ou nom du projet ; le fournisseur
+voit les métadonnées réseau. Ses [conditions](https://docs.ntfy.sh/terms/) et
+[limites](https://docs.ntfy.sh/publish/#limitations) s’appliquent, sans garantie
+de disponibilité. Une panne peut retarder la découverte. Reprise seulement dans
+le panneau ouvert ou à son retour au premier plan, sans APNs.
+
+**Suspendre IDE Link** sur PC conserve l’association. Réassocier/décocher sur PC,
+**Déconnecter** sur mobile ou changer explicitement de compte sur PC révoque
+l’accès. **Oublier sur cet iPhone** et la déconnexion du compte mobile retirent
+le Trousseau local ; pour un téléphone perdu, révoquer depuis le PC.
+Un seul PC/projet est mémorisé à la fois sur l’iPhone. Les anciennes apps et
+la page navigateur restent temporaires. L’option avancée de domaine Cloudflare
+fixe reste facultative ; aucun jeton Cloudflare n’est envoyé au téléphone.
+
+**Outils** propose Coder (fichiers, terminal, skills), Explorer (web, skills) et
+Complet, avec choix individuel des groupes. La sélection s’applique à la prochaine
+demande et est conservée par la file de l’IDE. Lecture locale, questions et plan
+restent disponibles. Cette sélection ne remplace pas les permissions de l’IDE.
+Le mode Plan conserve sa restriction de lecture seule.
+
+La vue sépare Conversation et Activité, avec Markdown partagé, détails techniques
+repliables et pièces jointes retirables. Les messages inchangés conservent leurs
+nœuds DOM. Le suivi utilise `since=<revision>` et ralentit de 1,5 à cinq secondes
+après plusieurs réponses inchangées. Les gains réels restent à mesurer.
+Les erreurs réseau espacent les lectures jusqu’à quinze secondes ; les actions
+de l’utilisateur ne sont jamais renvoyées automatiquement.
+
+État du 31 octobre 2026 : syntaxe contrôlée et aperçu 390 px inspecté dans Chrome
+headless avec données de démonstration ; tests automatisés,
+build Xcode et essai sur iPhone à réaliser avant publication. Contrôles dédiés :
+`node test-ide-link.cjs`, `node test-ide-link-remembered.cjs`,
+`node test-ios-bridge.cjs`, `node test-library.cjs`.
+Vérifier aussi expiration, révocation, coupure réseau, retour au premier plan,
+clavier et questions résolues depuis l’ordinateur. Pour la mémorisation : relance
+des deux apps, nouvelle adresse du tunnel, coffre verrouillé, panne/quota ntfy,
+annonce/preuve falsifiée, révocation hors ligne et changement de compte/projet.
+Les scénarios préparés simulent les services et le Trousseau ; aucun essai réel
+ntfy/Cloudflare, Keychain ou compilation Swift n’est validé ici.
+
 ```bash
 node scripts/verify-iphone.cjs
 node test-restoration.cjs

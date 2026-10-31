@@ -353,7 +353,11 @@ async function cookieLogin(event) {
   }
 }
 
-function logout() {
+async function logout() {
+  try { if (typeof forgetRememberedLink === "function") await forgetRememberedLink(); }
+  catch (error) { if (typeof showToast === "function") showToast(error.message); return; }
+  document.getElementById("france-ide")?.close();
+  if (typeof franceIDESession !== "undefined") franceIDESession = null;
   if (busy) stopGeneration();
   store.session = "";
   store.profile = null;
