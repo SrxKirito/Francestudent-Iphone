@@ -369,48 +369,97 @@ function openSidebar() {
   $("sidebar").classList.add("open");
   $("overlay").classList.remove("hidden");
   $("menu-toggle").setAttribute("aria-expanded", "true");
+  clearSidebarDrag();
 }
 
 function closeSidebar() {
   $("sidebar").classList.remove("open");
   $("overlay").classList.add("hidden");
   $("menu-toggle").setAttribute("aria-expanded", "false");
+  clearSidebarDrag();
+}
+
+function clearSidebarDrag() {
+  $("app").classList.remove("sidebar-dragging");
+  $("sidebar").style.removeProperty("transform");
+  $("overlay").style.removeProperty("opacity");
 }
 
 function setupSidebarGestures() {
   const app = $("app");
+  const sidebar = $("sidebar");
+  const overlay = $("overlay");
   let gesture = null;
+  let suppressClickUntil = 0;
+  function move(touch) {
+    const dx = touch.clientX - gesture.x;
+    const dy = touch.clientY - gesture.y;
+    if (!gesture.dragging) {
+      if (Math.abs(dy) > 8 && Math.abs(dy) > Math.abs(dx)) { gesture = null; return; }
+      if (Math.abs(dx) < 8 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+      if (gesture.closing ? dx > 0 : dx < 0) { gesture = null; return; }
+      gesture.dragging = true;
+      closeMenus();
+      document.activeElement?.blur();
+      app.classList.add("sidebar-dragging");
+      overlay.classList.remove("hidden");
+    }
+    const now = Date.now();
+    const elapsed = now - gesture.lastTime;
+    if (elapsed > 0 && touch.clientX !== gesture.lastX) {
+      gesture.velocity = (touch.clientX - gesture.lastX) / elapsed;
+      gesture.lastTime = now;
+      gesture.lastX = touch.clientX;
+    }
+    gesture.position = Math.max(0, Math.min(gesture.width, (gesture.closing ? gesture.width : 0) + dx));
+    sidebar.style.transform = `translateX(${gesture.position - gesture.width}px)`;
+    overlay.style.opacity = String(gesture.position / gesture.width);
+  }
+  function finish(cancelled = false) {
+    const start = gesture;
+    gesture = null;
+    if (!start?.dragging) return;
+    suppressClickUntil = Date.now() + 400;
+    const velocity = Date.now() - start.lastTime <= 100 ? start.velocity : 0;
+    const travelled = Math.abs(start.position - (start.closing ? start.width : 0));
+    const open = cancelled ? start.closing
+      : travelled >= 18 && Math.abs(velocity) > 0.5 ? velocity > 0
+      : start.position >= start.width / 2;
+    // Restore transitions at the current position before snapping to an endpoint.
+    app.classList.remove("sidebar-dragging");
+    sidebar.getBoundingClientRect();
+    if (open) openSidebar(); else closeSidebar();
+  }
   app.addEventListener("touchstart", event => {
+    finish(true);
     gesture = null;
     if (window.innerWidth > 768 || event.touches.length !== 1) return;
     const target = event.target;
-    if (target.closest("input, textarea, button, a, select, [contenteditable], dialog, .popover, .settings-modal")) return;
+    if (target.closest("input, textarea, select, [contenteditable], dialog, .popover, .settings-modal")) return;
+    if (target.closest("button, a") && !sidebar.contains(target)) return;
     if (window.getSelection()?.toString()) return;
     // Preserve horizontal scrolling in tables and code blocks.
     for (let node = target; node && node !== app; node = node.parentElement) {
       if (node.scrollWidth > node.clientWidth + 1 && /auto|scroll/.test(getComputedStyle(node).overflowX)) return;
     }
     const touch = event.touches[0];
-    gesture = { x: touch.clientX, y: touch.clientY, time: Date.now(), closing: $("sidebar").classList.contains("open") };
+    gesture = { x: touch.clientX, y: touch.clientY, lastX: touch.clientX, lastTime: Date.now(), velocity: 0,
+      closing: sidebar.classList.contains("open"), width: sidebar.getBoundingClientRect().width, dragging: false };
   }, { passive: true });
   app.addEventListener("touchmove", event => {
     if (!gesture) return;
-    if (event.touches.length !== 1) { gesture = null; return; }
-    const dx = event.touches[0].clientX - gesture.x;
-    const dy = event.touches[0].clientY - gesture.y;
-    if (Math.abs(dy) > 20 && Math.abs(dy) > Math.abs(dx)) { gesture = null; return; }
-    if ((gesture.closing ? dx < -16 : dx > 16) && Math.abs(dx) > Math.abs(dy) * 1.5 && event.cancelable) event.preventDefault();
+    if (event.touches.length !== 1) { finish(true); return; }
+    move(event.touches[0]);
+    if (gesture?.dragging && event.cancelable) event.preventDefault();
   }, { passive: false });
   app.addEventListener("touchend", event => {
-    const start = gesture;
-    gesture = null;
-    if (!start || event.changedTouches.length !== 1 || Date.now() - start.time > 700) return;
-    const dx = event.changedTouches[0].clientX - start.x;
-    const dy = event.changedTouches[0].clientY - start.y;
-    if (Math.abs(dx) < 64 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
-    if (start.closing && dx < 0) { closeMenus(); closeSidebar(); }
-    else if (!start.closing && dx > 0) { closeMenus(); openSidebar(); }
+    if (gesture && event.changedTouches.length === 1) move(event.changedTouches[0]);
+    finish();
   }, { passive: true });
-  app.addEventListener("touchcancel", () => { gesture = null; }, { passive: true });
+  app.addEventListener("touchcancel", () => finish(true), { passive: true });
+  app.addEventListener("click", event => {
+    if (Date.now() < suppressClickUntil) { event.preventDefault(); event.stopImmediatePropagation(); }
+  }, true);
+  window.addEventListener("resize", () => finish(true));
 }
 

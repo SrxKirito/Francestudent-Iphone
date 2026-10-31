@@ -1112,6 +1112,16 @@ button {
     transform: translateX(0);
   }
 
+  .app.sidebar-dragging .sidebar {
+    transition: none;
+    will-change: transform;
+  }
+
+  .app.sidebar-dragging {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
   .model-select {
     text-align: center;
   }
