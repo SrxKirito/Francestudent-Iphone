@@ -147,6 +147,9 @@ function viewport(native = true) {
   move(900);
   assert.equal(nodes.sidebar.style.transform, 'translateX(0px)', 'Limiter la position à l’ouverture complète');
   window.emit('resize');
+  assert.equal(nodes.sidebar.style.transform, 'translateX(0px)', 'Masquer le clavier ne coupe pas le geste');
+  window.innerWidth = 844;
+  window.emit('resize');
   assert.equal(nodes.sidebar.style.transform, undefined, 'Nettoyer le déplacement lors d’une rotation');
   window.innerWidth = 1024;
   swipe(30, 150);

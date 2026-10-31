@@ -444,7 +444,8 @@ function setupSidebarGestures() {
     }
     const touch = event.touches[0];
     gesture = { x: touch.clientX, y: touch.clientY, lastX: touch.clientX, lastTime: Date.now(), velocity: 0,
-      closing: sidebar.classList.contains("open"), width: sidebar.getBoundingClientRect().width, dragging: false };
+      closing: sidebar.classList.contains("open"), width: sidebar.getBoundingClientRect().width,
+      viewportWidth: window.innerWidth, dragging: false };
   }, { passive: true });
   app.addEventListener("touchmove", event => {
     if (!gesture) return;
@@ -460,6 +461,8 @@ function setupSidebarGestures() {
   app.addEventListener("click", event => {
     if (Date.now() < suppressClickUntil) { event.preventDefault(); event.stopImmediatePropagation(); }
   }, true);
-  window.addEventListener("resize", () => finish(true));
+  window.addEventListener("resize", () => {
+    if (gesture && window.innerWidth !== gesture.viewportWidth) finish(true);
+  });
 }
 
