@@ -1,12 +1,13 @@
 "use strict";
 
+const LIBRARY_CODE = /\.(py|pyw|js|mjs|cjs|jsx|ts|tsx|html?|css|scss|json|ipynb|java|kt|swift|c|cc|cpp|h|hpp|cs|go|rs|rb|php|sql|sh|ps1|ya?ml|toml|xml|vue|svelte|lua|r|dart)$/i;
 const libraryOwner = () => store.profile?.email || 'device:' + store.deviceId;
 function libraryKind(name, image = false) {
-  return image || /\.(png|jpe?g|webp|gif|heic|svg)$/i.test(name) ? 'image' : /\.pptx$/i.test(name) ? 'presentation' : /\.(pdf|docx?|odt|rtf)$/i.test(name) ? 'document' : 'other';
+  return image || /\.(png|jpe?g|webp|gif|heic|svg)$/i.test(name) ? 'image' : /\.pptx$/i.test(name) ? 'presentation' : /\.(pdf|docx?|odt|rtf)$/i.test(name) ? 'document' : LIBRARY_CODE.test(name) ? 'code' : 'other';
 }
 function libraryMatches(record, query, project, kind, direction) {
   const clean = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
-  return (!query || clean(record.name).includes(clean(query))) && (project === '*' || (record.projectId || '') === project) && (kind === '*' || record.kind === kind) && (direction === '*' || record.direction === direction);
+  return (!query || clean(record.name).includes(clean(query))) && (project === '*' || (record.projectId || '') === project) && (kind === '*' || (kind.startsWith('ext:') ? record.name.toLowerCase().endsWith('.'+kind.slice(4)) : libraryKind(record.name,record.kind==='image') === kind)) && (direction === '*' || record.direction === direction);
 }
 async function libraryRecords() {
   const db = await openPreviewDatabase();
@@ -91,11 +92,16 @@ async function resumeSavedResponse(conversation) {
   await runAssistant(item,item.pendingResponse.text,[],true);
 }
 
-async function openLibrary() {
+async function openLibrary(initialKind = '*') {
+  if(typeof initialKind!=='string')initialKind='*';
+  closeSidebar();
   document.getElementById('file-library')?.remove();
   const dialog=document.createElement('dialog');dialog.id='file-library';dialog.className='file-library';
-  dialog.innerHTML='<header><div><h2>Bibliothèque</h2><p>Fichiers et images conservés sur ce téléphone.</p></div><button type="button" data-close aria-label="Fermer">×</button></header><section data-jobs></section><div class="library-filters"><input type="search" placeholder="Rechercher un fichier" aria-label="Rechercher un fichier"><select data-project aria-label="Filtrer par projet"><option value="*">Tous les projets</option><option value="">Sans projet</option></select><select data-kind aria-label="Type de fichier"><option value="*">Tous les types</option><option value="image">Images</option><option value="document">Documents</option><option value="presentation">PowerPoint</option><option value="other">Autres fichiers</option></select><select data-direction aria-label="Origine"><option value="*">Envoyés et générés</option><option value="sent">Envoyés</option><option value="generated">Générés</option></select></div><p data-status role="status">Chargement…</p><div class="library-grid"></div><footer><button type="button" data-notifications></button><small>Notifications locales pendant l’exécution en arrière-plan. Pas de notification distante quand l’app est fermée.</small></footer>';
+  dialog.innerHTML='<header><div><h2>Bibliothèque</h2><p>Fichiers et images conservés sur ce téléphone.</p></div><button type="button" data-close aria-label="Fermer">×</button></header><nav class="library-tabs" aria-label="Espace"><button type="button" data-tab="all">Bibliothèque</button><button type="button" data-tab="code">Code</button><button type="button" data-tab="codex">Codex</button></nav><section data-codex hidden></section><section data-jobs></section><div class="library-filters"><input type="search" placeholder="Rechercher un fichier" aria-label="Rechercher un fichier"><select data-project aria-label="Filtrer par projet"><option value="*">Tous les projets</option><option value="">Sans projet</option></select><select data-kind aria-label="Type de fichier"><option value="*">Tous les types</option><option value="image">Images</option><option value="document">Documents</option><option value="presentation">PowerPoint</option><option value="code">Code source</option><option value="ext:py">Python (.py)</option><option value="ext:js">JavaScript (.js)</option><option value="ext:ts">TypeScript (.ts)</option><option value="ext:html">HTML (.html)</option><option value="ext:css">CSS (.css)</option><option value="ext:json">JSON (.json)</option><option value="other">Autres fichiers</option></select><select data-direction aria-label="Origine"><option value="*">Envoyés et générés</option><option value="sent">Envoyés</option><option value="generated">Générés</option></select></div><p data-status role="status">Chargement…</p><div class="library-grid"></div><footer><button type="button" data-notifications></button><small>Notifications locales pendant l’exécution en arrière-plan. Pas de notification distante quand l’app est fermée.</small></footer>';
   document.body.append(dialog);dialog.showModal();
+  const resources=[];let observer;
+  dialog.addEventListener('close',()=>{observer?.disconnect();for(const url of resources)URL.revokeObjectURL(url);},{once:true});
+  setupLibraryCodex(dialog);
   dialog.querySelector('[data-close]').onclick=()=>{dialog.close();dialog.remove();};
   dialog.addEventListener('close',()=>dialog.remove(),{once:true});
   const notifications=dialog.querySelector('[data-notifications]');
@@ -123,13 +129,17 @@ async function openLibrary() {
     for(const conversation of store.conversations)await indexConversationFiles(conversation);
     const records=await libraryRecords();
     const search=dialog.querySelector('input'),kind=dialog.querySelector('[data-kind]'),direction=dialog.querySelector('[data-direction]'),grid=dialog.querySelector('.library-grid');
+    kind.value=initialKind;
     const render=()=>{
+      observer?.disconnect();for(const url of resources.splice(0))URL.revokeObjectURL(url);
+      let queue=Promise.resolve();
+      observer=new IntersectionObserver(entries=>{for(const entry of entries)if(entry.isIntersecting){observer.unobserve(entry.target);queue=queue.then(()=>entry.target.isConnected?libraryThumbnail(entry.target,entry.target.libraryRecord,resources):null).catch(console.warn);}},{root:dialog,rootMargin:'120px'});
       grid.replaceChildren();
       const list=records.filter(r=>libraryMatches(r,search.value,projectSelect.value,kind.value,direction.value)).sort((a,b)=>b.created-a.created);
       dialog.querySelector('[data-status]').textContent=list.length+' fichier(s)';
       for(const record of list) {
         const card=document.createElement('article');card.className='library-card';
-        const open=document.createElement('button');open.className='library-open';open.innerHTML=fileIconSvg(record.name,record.kind==='image'?'image':'file');
+        const open=document.createElement('button');open.className='library-open';const thumb=document.createElement('span');thumb.className='library-thumbnail';thumb.textContent='Chargement de l’aperçu…';thumb.libraryRecord=record;open.append(thumb);
         const name=document.createElement('strong');name.textContent=record.name;open.append(name);open.title='Aperçu';
         open.onclick=async()=>{open.disabled=true;try{const file=await libraryBlob(record);dialog.close();await previewBlob(file.name,file.blob);}catch(e){dialog.querySelector('[data-status]').textContent=e.message;}finally{open.disabled=false;}};
         const meta=document.createElement('small');meta.textContent=(record.direction==='sent'?'Envoyé':'Généré')+' · '+new Date(record.created).toLocaleDateString('fr-FR');
@@ -138,10 +148,68 @@ async function openLibrary() {
         for(const item of projects){const option=document.createElement('option');option.value=item.id;option.textContent=item.name;project.append(option);}project.value=record.projectId||'';
         project.onchange=async()=>{record.projectId=project.value;try{await libraryWrite(record);render();}catch(e){showToast(e.message,true);}};
         const save=document.createElement('button');save.textContent='Enregistrer';save.onclick=async()=>{save.disabled=true;try{const file=await libraryBlob(record);await saveFile(file.name,new Uint8Array(await file.blob.arrayBuffer()));showToast('Fichier enregistré.');}catch(e){showToast(e.message,true);}finally{save.disabled=false;}};
-        card.append(open,meta,project,save);grid.append(card);
+        card.append(open,meta,project,save);grid.append(card);observer.observe(thumb);
       }
     };
     for(const field of [search,projectSelect,kind,direction])field.addEventListener('input',render);
+    for(const tab of dialog.querySelectorAll('[data-tab]'))tab.onclick=()=>{
+      const codex=tab.dataset.tab==='codex';
+      dialog.querySelector('[data-codex]').hidden=!codex;
+      for(const node of [grid,dialog.querySelector('.library-filters'),dialog.querySelector('[data-status]'),jobs])node.hidden=codex;
+      for(const button of dialog.querySelectorAll('[data-tab]'))button.setAttribute('aria-pressed',String(button===tab));
+      if(!codex){kind.value=tab.dataset.tab==='code'?'code':'*';render();}
+    };
+    dialog.querySelector('[data-tab="'+(initialKind==='code'?'code':'all')+'"]').setAttribute('aria-pressed','true');
     render();
   } catch(error){dialog.querySelector('[data-status]').textContent='Bibliothèque indisponible : '+error.message;}
+}
+
+async function libraryThumbnail(node, record, resources) {
+  const text = value => {node.textContent='';const pre=document.createElement('pre');pre.textContent=String(value||'Fichier vide').slice(0,1800);node.append(pre);};
+  try {
+    if(record.code!==undefined && /\.pptx$/i.test(record.name)) {
+      const deck=parsePowerPoint(record.code),slide=deck.slides[0];
+      node.classList.add('library-slide');node.textContent='';
+      const title=document.createElement('b');title.textContent=slide.title;
+      const body=document.createElement('span');body.textContent=slide.bullets.slice(0,4).join('\n');
+      const number=document.createElement('small');number.textContent='1 / '+deck.slides.length;
+      node.append(title,body,number);return;
+    }
+    if(record.code!==undefined){text(record.code);return;}
+    const file=await libraryBlob(record);
+    if(!node.isConnected)return;
+    if(file.blob.type.startsWith('image/')){
+      const url=URL.createObjectURL(file.blob);resources.push(url);
+      const image=document.createElement('img');image.src=url;image.alt='Aperçu de '+record.name;node.replaceChildren(image);return;
+    }
+    if(/\.pdf$/i.test(record.name) && window.pdfjsLib){
+      const task=pdfjsLib.getDocument({data:new Uint8Array(await file.blob.arrayBuffer())});
+      const pdf=await task.promise;
+      try {const page=await pdf.getPage(1),base=page.getViewport({scale:1}),view=page.getViewport({scale:Math.min(1,480/base.width)}),canvas=document.createElement('canvas');canvas.width=view.width;canvas.height=view.height;await page.render({canvasContext:canvas.getContext('2d'),viewport:view}).promise;if(node.isConnected)node.replaceChildren(canvas);}
+      finally{await pdf.destroy();}return;
+    }
+    if(LIBRARY_CODE.test(record.name)||/\.(txt|md|csv|log)$/i.test(record.name)){text(await file.blob.slice(0,6000).text());return;}
+    const bytes=new Uint8Array(await file.blob.arrayBuffer());
+    const embedded=await FileConvert.embeddedThumbnail(bytes);
+    if(embedded && node.isConnected){const url=URL.createObjectURL(embedded);resources.push(url);const image=document.createElement('img');image.src=url;image.alt='Première page de '+record.name;node.replaceChildren(image);return;}
+    const result=await FileConvert.extractText(bytes,record.name,file.blob.type);
+    text(result?.text||'Aperçu indisponible pour ce format');
+  }catch{node.textContent='Aperçu indisponible · toucher pour ouvrir';}
+}
+
+function ideLinkAddress(value) {
+  const url=new URL(value.trim());
+  if(url.protocol!=='https:'||url.username||url.password||url.search||url.hash||url.pathname!=='/')throw new Error('Colle l’adresse HTTPS IDE Link affichée sur l’ordinateur, sans code PIN.');
+  return url.origin+'/';
+}
+function setupLibraryCodex(dialog) {
+  const panel=dialog.querySelector('[data-codex]');
+  panel.innerHTML='<h3>Codex · FranceStudents IDE</h3><p>Retrouve l’agent de ton ordinateur, ses réponses et sa file de tâches depuis IDE Link.</p><ol><li>Ouvre ton projet dans FranceStudents IDE sur l’ordinateur.</li><li>Active IDE Link et copie son adresse HTTPS.</li><li>Ouvre la connexion ici puis saisis le code PIN affiché sur l’ordinateur.</li></ol><form><label>Adresse IDE Link<input type="url" required placeholder="https://…trycloudflare.com" aria-label="Adresse IDE Link"></label><button type="submit">Ouvrir IDE Link</button><p role="status"></p></form><small>La connexion s’ouvre dans le navigateur sécurisé. L’ordinateur et IDE Link doivent rester allumés. Cette liaison permet de piloter l’agent ; elle ne synchronise pas automatiquement les fichiers du téléphone.</small><a href="https://github.com/extraopaa/francestudents-ide/tree/main/desktop" target="_blank" rel="noopener noreferrer">Projet FranceStudents IDE</a>';
+  const input=panel.querySelector('input');
+  try{input.value=localStorage.getItem('frst-ide-link-address')||'';}catch{}
+  panel.querySelector('form').onsubmit=event=>{
+    event.preventDefault();
+    try{const address=ideLinkAddress(input.value);localStorage.setItem('frst-ide-link-address',address);window.open(address,'_blank','noopener,noreferrer');panel.querySelector('[role="status"]').textContent='Saisis le code PIN dans IDE Link pour terminer la connexion.';}
+    catch(error){panel.querySelector('[role="status"]').textContent=error.message;}
+  };
 }

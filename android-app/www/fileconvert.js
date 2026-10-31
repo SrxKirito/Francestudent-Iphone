@@ -514,7 +514,14 @@
       "\nLe contenu de ce fichier n'a pas pu être converti en texte sur le téléphone.";
   }
 
-  const api = { extractText, describe, htmlToText, rtfToText, decodeText, binaryStrings, zipEntries, isZip, MAX_TEXT };
+  async function embeddedThumbnail(input) {
+    const bytes = input instanceof Uint8Array ? input : new Uint8Array(input);
+    if (!isZip(bytes)) return null;
+    const entry = zipEntries(bytes).find(item => /^docProps\/thumbnail\.(png|jpeg|jpg)$/i.test(item.name));
+    if (!entry || entry.size > 5*1024*1024) return null;
+    return new Blob([await readEntry(bytes,entry)], {type:/\.png$/i.test(entry.name)?'image/png':'image/jpeg'});
+  }
+  const api = { embeddedThumbnail, extractText, describe, htmlToText, rtfToText, decodeText, binaryStrings, zipEntries, isZip, MAX_TEXT };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.FileConvert = api;
 })(typeof window !== "undefined" ? window : globalThis);

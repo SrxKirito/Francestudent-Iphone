@@ -25,3 +25,11 @@ const conversation={id:'chat',projectId:'project',updatedAt:1,messages:[
   assert.equal([...records.values()].find(r=>r.conversationId==='large-image').image.data,large.data,'Les grandes images exclues du localStorage restent dans la bibliothèque IndexedDB');
   console.log('OK : documents envoyés, PPTX et images générés, recherche et classement par projet sans doublons.');
 })().catch(error=>{console.error(error);process.exitCode=1;});
+for(const name of ['test.py','main.js','script.cjs','app.tsx','query.sql','main.swift'])assert.equal(context.libraryKind(name),'code');
+assert.equal(context.libraryMatches({name:'MAIN.PY',kind:'other'},'main','*','code','*'),true);
+assert.equal(context.libraryMatches({name:'MAIN.PY',kind:'other'},'','*','ext:py','*'),true);
+assert.equal(context.libraryMatches({name:'main.js',kind:'code'},'','*','ext:py','*'),false);
+const urlContext=vm.createContext({URL,store:{},Date});
+vm.runInContext(fs.readFileSync(__dirname+'/www/js/library.js','utf8'),urlContext);
+assert.equal(urlContext.ideLinkAddress('https://example.trycloudflare.com/'),'https://example.trycloudflare.com/');
+for(const url of ['javascript:alert(1)','http://example.com','https://user:secret@example.com','https://example.com/?token=secret'])assert.throws(()=>urlContext.ideLinkAddress(url));
